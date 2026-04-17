@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EV Radar Control Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Jura:wght@400;600;700&family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.7);
+      --border: rgba(148, 163, 184, 0.15);
+      --highlight: rgba(56, 189, 248, 0.3);
+      
+      --accent: #0ea5e9;
+      --safe: #10b981;
+      --caution: #f59e0b;
+      --danger: #ef4444;
+      --door: #d946ef;
+    }
+
+    body {
+      margin: 0; background: var(--bg); color: #fff;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden; height: 100vh;
+      display: flex; flex-direction: column;
+      background: radial-gradient(circle at 50% 120%, #1e293b 0%, #020617 100%);
+    }
+
+    header {
+      padding: 24px 50px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(12px);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    
+    .title {
+      font-family: 'Jura', sans-serif; font-size: 2rem; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+    }
+    
+    .btn-connect {
+      background: rgba(255,255,255,0.05); border: 2px solid var(--border);
+      color: white; padding: 12px 30px; border-radius: 12px; cursor: pointer;
+      font-weight: 700; letter-spacing: 1.5px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-transform: uppercase; font-size: 0.9rem; font-family: 'Jura';
+    }
+    .btn-connect:hover { background: rgba(255,255,255,0.1); border-color: var(--highlight); transform: translateY(-2px); }
+    .btn-connect.active { background: var(--safe); border-color: #059669; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+
+    main { display: flex; flex: 1; padding: 40px 50px; gap: 40px; }
+
+    /* Left - Radar */
+    .radar-pane {
+      flex: 1; min-width: 600px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 30px; display: flex; align-items: center; justify-content: center;
+      position: relative; box-shadow: inset 0 0 80px rgba(0,0,0,0.6), 0 20px 50px rgba(0,0,0,0.4);
+      backdrop-filter: blur(20px);
+    }
+    canvas { display: block; border-radius: 50%; opacity: 0.9; }
+
+    /* Right - Gauges & Controls */
+    .dashboard-pane {
+      width: 500px; display: flex; flex-direction: column; gap: 25px;
+    }
+
+    /* Warning Cluster */
+    .warning-cluster {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+    }
+    .w-light {
+      background: rgba(0,0,0,0.4); border: 2px solid var(--border);
+      border-radius: 16px; padding: 20px; text-align: center;
+      font-family: 'Jura', sans-serif; font-weight: 700; color: #475569;
+      letter-spacing: 2px; transition: all 0.3s; font-size: 1.1rem;
+      backdrop-filter: blur(10px); text-transform: uppercase;
+    }
+    .w-light.on-safe { background: rgba(16, 185, 129, 0.15); color: var(--safe); border-color: var(--safe); box-shadow: 0 0 25px rgba(16,185,129,0.4) inset, 0 0 15px rgba(16,185,129,0.3); }
+    .w-light.on-caution { background: rgba(245, 158, 11, 0.15); color: var(--caution); border-color: var(--caution); box-shadow: 0 0 25px rgba(245,158,11,0.4) inset, 0 0 15px rgba(245,158,11,0.3); }
+    .w-light.on-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: var(--danger); box-shadow: 0 0 30px rgba(239,68,68,0.5) inset, 0 0 20px rgba(239,68,68,0.4); animation: flash 0.4s infinite alternate; }
+
+    @keyframes flash {
+      from { opacity: 1; filter: brightness(1.2); } 
+      to { opacity: 0.7; filter: brightness(0.8); }
+    }
+
+    /* Gauges */
+    .gauge-container {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 20px; padding: 25px; display: flex; gap: 20px;
+      backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .gauge-box {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+    .gauge-title { font-family: 'Jura'; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: -15px; z-index: 2; font-size: 0.9rem;}
+    .gauge-svg { width: 100%; max-width: 180px; overflow: visible; filter: drop-shadow(0 0 8px rgba(0,0,0,0.5)); }
+    .gauge-bg { stroke: #1e293b; stroke-width: 8; stroke-linecap: round; }
+    .gauge-fill { stroke: var(--accent); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 125.6; stroke-dashoffset: 125.6; transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    
+    .gauge-value {
+      position: absolute; bottom: 15px; text-align: center;
+    }
+    .g-num { font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .g-unit { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-top: -5px;}
+
+    /* Controls Panel */
+    .controls-panel {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 20px; padding: 25px; display: flex; flex-direction: column; gap: 20px;
+      backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); flex: 1;
+    }
+    .panel-title { font-family: 'Jura'; font-size: 0.9rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 2px; }
+    
+    .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; flex: 1; }
+    .ctrl-btn {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+      color: #cbd5e1; border-radius: 16px; font-family: 'Jura';
+      font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); transform: translateY(-2px); }
+    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn.active-blue { color: white; border-color: var(--accent); background: rgba(14, 165, 233, 0.4); box-shadow: 0 0 20px rgba(14, 165, 233, 0.2) inset; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    
+    .ctrl-icon { font-size: 2rem; margin-bottom: 5px; }
+    .ctrl-text { font-size: 0.9rem; }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">LD2451 Dooring Defense</div>
+    <button id="connectBtn" class="btn-connect">Connect Radar (USB)</button>
+  </header>
+
+  <main>
+    <div class="radar-pane">
+      <canvas id="radarCanvas" width="700" height="700"></canvas>
+    </div>
+
+    <div class="dashboard-pane">
+      
+      <!-- Warning Indicators -->
+      <div class="warning-cluster">
+        <div id="l-safe" class="w-light on-safe">System Safe</div>
+        <div id="l-caution" class="w-light">Caution Area</div>
+        <div id="l-danger" class="w-light">Danger !</div>
+      </div>
+
+      <!-- Gauges -->
+      <div class="gauge-container">
+        <div class="gauge-box">
+          <div class="gauge-title">PEAK SPEED</div>
+          <svg class="gauge-svg" viewBox="0 0 100 50">
+            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-bg" />
+            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-fill" id="speedGaugeFill" style="stroke: #38bdf8;" />
+          </svg>
+          <div class="gauge-value">
+            <div class="g-num" id="speedVal">0</div>
+            <div class="g-unit">km / h</div>
+          </div>
+        </div>
+
+        <div class="gauge-box">
+          <div class="gauge-title">TIME TO COLLISION</div>
+          <svg class="gauge-svg" viewBox="0 0 100 50">
+            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-bg" />
+            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-fill" id="ttcGaugeFill" />
+          </svg>
+          <div class="gauge-value">
+            <div class="g-num" id="ttcVal">--</div>
+            <div class="g-unit">Seconds</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-panel">
+        <div class="panel-title">Operations Center</div>
+        <div class="ctrl-grid">
+          <button class="ctrl-btn" id="btn-radar">
+            <div class="ctrl-icon">🎯</div>
+            <div class="ctrl-text">Scan (ON/OFF)</div>
+          </button>
+          <button class="ctrl-btn" id="btn-bt" class="active-blue">
+            <div class="ctrl-icon">📶</div>
+            <div class="ctrl-text">Bluetooth: ON</div>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // Config
+    const MAX_RADAR_DIST = 40; 
+    let port, serialWriter, serialReader;
+    let targets = {};
+    let isScanning = false;
+    let scanAngle = 0;
+    
+    // UI Elements
+    const connectBtn = document.getElementById('connectBtn');
+    const lightSafe = document.getElementById('l-safe');
+    const lightCaution = document.getElementById('l-caution');
+    const lightDanger = document.getElementById('l-danger');
+    
+    const speedGauge = document.getElementById('speedGaugeFill');
+    const speedVal = document.getElementById('speedVal');
+    const ttcGauge = document.getElementById('ttcGaugeFill');
+    const ttcVal = document.getElementById('ttcVal');
+    
+    const btnRadar = document.getElementById('btn-radar');
+    const btnBt = document.getElementById('btn-bt');
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Commands Logic
+    async function sendCommand(str) {
+      if (!serialWriter) return;
+      await serialWriter.write(str);
+    }
+    
+    async function stopStandby() {
+      if (!serialWriter) return;
+      await sendCommand("\n"); // Send newline to safely exit scanning loops without triggering menu cases
+      isScanning = false;
+      btnRadar.classList.remove('active-blue');
+      targets = {}; // clear visual cache
+      updateUI();
+      // Wait for it to fall back to menu
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    connectBtn.addEventListener('click', async () => {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        
+        const textEncoder = new TextEncoderStream();
+        textEncoder.readable.pipeTo(port.writable);
+        serialWriter = textEncoder.writable.getWriter();
+        
+        connectBtn.innerText = "Rebooting Module...";
+        
+        // Wait for DTR reset Arduino bootloader
+        await new Promise(r => setTimeout(r, 2500));
+        
+        connectBtn.innerText = "System Online";
+        connectBtn.classList.add('active');
+        connectBtn.disabled = true;
+        
+        // Start live reading stream detached
+        readDataLoop();
+        
+        // Auto start radar logging immediately
+        await stopStandby();
+        await sendCommand("G");
+        isScanning = true;
+        btnRadar.classList.add('active-blue');
+      } catch (err) {
+        console.error(err);
+        alert("Make sure you fully closed the Arduino IDE Serial Monitor before connecting!");
+      }
+    });
+
+    btnRadar.addEventListener('click', async () => {
+      if (!serialWriter) return alert("Please connect to USB first.");
+      if (isScanning) {
+        await stopStandby(); // Turn off
+      } else {
+        await stopStandby();
+        await sendCommand("G"); // Enable CSV Logger
+        isScanning = true;
+        btnRadar.classList.add('active-blue');
+      }
+    });
+
+    let btState = true;
+    btnBt.classList.add('active-blue');
+    btnBt.addEventListener('click', async () => {
+      if (!serialWriter) return;
+      btState = !btState;
+      await stopStandby();
+      await sendCommand("B");
+      await new Promise(r => setTimeout(r, 200)); // Wait for prompt
+      await sendCommand(btState ? "1\n" : "0\n");
+      
+      btnBt.style.opacity = "0.5";
+      btnBt.querySelector('.ctrl-text').innerText = "Applying...";
+      
+      // Hardware reboots after this command! Wait 3s.
+      await new Promise(r => setTimeout(r, 3000));
+      
+      btnBt.style.opacity = "1";
+      btnBt.querySelector('.ctrl-text').innerText = btState ? "Bluetooth: ON" : "Bluetooth: OFF";
+      btnBt.classList.toggle('active-blue', btState);
+      
+      // Auto resume radar logging after reboot
+      await sendCommand("G");
+      isScanning = true;
+      btnRadar.classList.add('active-blue');
+    });
+
+    // Parsing Stream
+    async function readDataLoop() {
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      serialReader = textDecoder.readable.getReader();
+      
+      let buffer = "";
+      while (true) {
+        try {
+          const { value, done } = await serialReader.read();
+          if (done) break;
+          buffer += value;
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep dangling piece
+          lines.forEach(line => parseData(line.trim()));
+        } catch (e) { break; }
+      }
+    }
+
+    function parseData(line) {
+      if (!line) return;
+      
+      // e.g. "millis,target,angle_deg,distance_m,direction,speed_kmh,snr,ttc_s,alert"
+      const parts = line.split(',');
+      if (parts.length >= 9 && parts[0] !== 'millis' && parts[0] !== 'CSV') {
+        const id = parseInt(parts[1]);
+        const alertStr = parts[8].trim();
+        
+        targets[id] = {
+          id, angle: parseInt(parts[2]), dist: parseInt(parts[3]), 
+          dir: parts[4], speed: parseInt(parts[5]), ttc: parseFloat(parts[7]), alert: alertStr,
+          lastSeen: Date.now()
+        };
+      }
+      updateUI();
+    }
+
+    function updateUI() {
+      const now = Date.now();
+      let worstTTC = 999;
+      let topSpeed = 0;
+      let sysAlert = 'SAFE';
+      let hasDanger = false;
+      let hasCaution = false;
+      
+      let activeCount = 0;
+      for (const id in targets) {
+        if (now - targets[id].lastSeen > 800) { delete targets[id]; continue; }
+        const t = targets[id];
+        
+        if (t.dir !== 'approach') continue; // only evaluate approaching for gauges
+        activeCount++;
+        
+        if (t.ttc < worstTTC && t.ttc > 0) worstTTC = t.ttc;
+        if (t.speed > topSpeed) topSpeed = t.speed;
+        
+        if (t.alert === 'DANGER') hasDanger = true;
+        if (t.alert === 'CAUTION') hasCaution = true;
+      }
+      
+      if (!isScanning) {
+          // Off
+          sysAlert = '';
+      } else {
+          if (hasDanger) sysAlert = 'DANGER';
+          else if (hasCaution) sysAlert = 'CAUTION';
+          else sysAlert = 'SAFE';
+      }
+      
+      // Update warning lights
+      lightSafe.className = 'w-light' + (sysAlert === 'SAFE' && isScanning ? ' on-safe' : '');
+      lightCaution.className = 'w-light' + (sysAlert === 'CAUTION' && isScanning ? ' on-caution' : '');
+      lightDanger.className = 'w-light' + (sysAlert === 'DANGER' && isScanning ? ' on-danger' : '');
+      
+      // Update SVG Gauges (Full arc = 125.6 length, offset 125.6 is empty, 0 is full)
+      let speedPct = isScanning ? Math.min(topSpeed / 50, 1.0) : 0;
+      speedGauge.style.strokeDashoffset = 125.6 - (125.6 * speedPct);
+      speedVal.innerText = isScanning && activeCount > 0 ? topSpeed : '0';
+      
+      let ttcPct = 0;
+      if (isScanning && worstTTC < 900 && activeCount > 0) {
+         ttcPct = Math.max(0, (10 - worstTTC) / 10);
+      }
+      ttcGauge.style.strokeDashoffset = 125.6 - (125.6 * ttcPct);
+      
+      let ttcColor = '#10b981'; // safe
+      if (ttcPct > 0.7) ttcColor = '#ef4444'; // danger
+      else if (ttcPct > 0.4) ttcColor = '#f59e0b'; // caution
+      ttcGauge.style.stroke = ttcColor;
+      
+      ttcVal.innerText = (isScanning && worstTTC < 900 && activeCount > 0) ? worstTTC.toFixed(1) : '--';
+    }
+
+    // High Fidelity Radar Canvas Render
+    function renderRadar() {
+      const W = canvas.width;
+      const H = canvas.height;
+      const cx = W / 2;
+      const cy = H - 30; // Sensor origin
+      const maxR = H - 80;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Radar Inner Shadows & BG
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxR, Math.PI, 0);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
+      ctx.fill();
+
+      // Grid Rings
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.2)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 4; i++) {
+        let r = (maxR / 4) * i;
+        ctx.beginPath();
+        // FOV arc: -60 to +60
+        ctx.arc(cx, cy, r, -Math.PI/2 - Math.PI/3, -Math.PI/2 + Math.PI/3);
+        ctx.stroke();
+        
+        ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
+        ctx.font = "bold 12px Jura";
+        let dist = (MAX_RADAR_DIST / 4) * i;
+        ctx.fillText(dist + "m", cx + 8, cy - r + 15);
+      }
+
+      // FOV Boundaries
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxR * Math.cos(-Math.PI/2 - Math.PI/3), cy + maxR * Math.sin(-Math.PI/2 - Math.PI/3));
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxR * Math.cos(-Math.PI/2 + Math.PI/3), cy + maxR * Math.sin(-Math.PI/2 + Math.PI/3));
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+      ctx.stroke();
+
+      if (isScanning) {
+          // Sweeper Line
+          scanAngle += 0.025;
+          let sweepAngle = -Math.PI/2 + Math.sin(scanAngle) * Math.PI/3;
+
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + maxR * Math.cos(sweepAngle), cy + maxR * Math.sin(sweepAngle));
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.9)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, maxR, sweepAngle - (Math.sin(scanAngle) > 0 ? 0.3 : -0.3), sweepAngle, Math.sin(scanAngle) <= 0);
+          ctx.lineTo(cx, cy);
+          ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
+          ctx.fill();
+
+          // Plot Targets
+          const now = Date.now();
+          for (const id in targets) {
+            if (now - targets[id].lastSeen > 800) continue;
+            const t = targets[id];
+            
+            const angleRad = -Math.PI / 2 + (t.angle * Math.PI / 180);
+            let distPx = (t.dist / MAX_RADAR_DIST) * maxR;
+            if (distPx > maxR) distPx = maxR;
+            
+            const tx = cx + distPx * Math.cos(angleRad);
+            const ty = cy + distPx * Math.sin(angleRad);
+            
+            let color = "#10b981"; let glow = 15;
+            if (t.ttc < 3) { color = "#ef4444"; glow = 35; }
+            else if (t.ttc < 6) { color = "#f59e0b"; glow = 25; }
+            
+            // Glow
+            ctx.beginPath();
+            ctx.arc(tx, ty, glow, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, glow);
+            grad.addColorStop(0, color);
+            grad.addColorStop(1, "transparent");
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // Core
+            ctx.beginPath();
+            ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.fill();
+            
+            // Data Tag
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.font = "bold 11px Inter";
+            ctx.fillText(`T${id} ${t.speed}km/h`, tx + 10, ty - 5);
+          }
+      }
+
+      requestAnimationFrame(renderRadar);
+    }
+    
+    renderRadar();
+  </script>
+</body>
+</html>
