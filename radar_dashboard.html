@@ -3,707 +3,165 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LD2451 Dooring Defense — Radar Control Center</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>EV Radar Control Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Jura:wght@400;600;700&family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:        #060b14;
-      --bg-grad-1: radial-gradient(1200px 800px at 20% -10%, rgba(60, 132, 255, 0.16), transparent 60%);
-      --bg-grad-2: radial-gradient(900px 700px at 100% 0%, rgba(40, 196, 255, 0.1), transparent 62%);
-      --panel:     #0d1524;
-      --surface:   #121d31;
-      --card:      #18263f;
-      --border:    rgba(128, 171, 235, 0.2);
-      --border-md: rgba(153, 198, 255, 0.34);
-      --border-hi: rgba(118, 215, 255, 0.62);
-      --text-1:    #e8f3ff;
-      --text-2:    rgba(211, 230, 255, 0.78);
-      --text-3:    rgba(172, 196, 229, 0.5);
-      --silver:    #8ad4ff;
-      --chrome:    #73afd9;
-      --accent:    #52d5ff;
-      --safe:      #2dd4bf;
-      --caution:   #fbbf24;
-      --danger:    #fb7185;
-      --radar-fill: rgba(10, 14, 25, 0.7);
-      --radar-ring-major: rgba(255,255,255,0.25);
-      --radar-ring-minor: rgba(255,255,255,0.10);
-      --radar-label: rgba(255,255,255,0.52);
-      --radar-boundary: rgba(255,255,255,0.2);
-      --radar-mask: rgba(9, 11, 16, 0.94);
-      --radar-tick-core: rgba(255,255,255,0.6);
-      --radar-tick-edge: rgba(255,255,255,0.1);
-      --radar-origin-a: rgba(255,255,255,0.34);
-      --radar-origin-b: rgba(255,255,255,0.4);
-      --radar-sweep-fill: rgba(255,255,255,0.06);
-      --radar-sweep-line: rgba(255,255,255,0.8);
-      --car-body: #596271;
-      --car-stroke: #2d3748;
-      --car-glass: #0f141e;
-      --car-roof: #707988;
-      --car-headlight: #f9f3ce;
-      --car-headlight-glow: rgba(255, 230, 162, 0.48);
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.7);
+      --border: rgba(148, 163, 184, 0.15);
+      --highlight: rgba(56, 189, 248, 0.3);
+      
+      --accent: #0ea5e9;
+      --safe: #10b981;
+      --caution: #f59e0b;
+      --danger: #ef4444;
+      --door: #d946ef;
     }
-
-    :root[data-theme="light"] {
-      --bg:        #dce7f3;
-      --bg-grad-1: radial-gradient(1200px 800px at 15% -10%, rgba(89, 141, 255, 0.12), transparent 62%);
-      --bg-grad-2: radial-gradient(900px 700px at 100% 0%, rgba(0, 179, 255, 0.08), transparent 64%);
-      --panel:     #eef3fa;
-      --surface:   #e1e9f4;
-      --card:      #d4deec;
-      --border:    rgba(70, 113, 179, 0.20);
-      --border-md: rgba(58, 112, 194, 0.30);
-      --border-hi: rgba(35, 141, 205, 0.42);
-      --text-1:    #132b49;
-      --text-2:    rgba(19, 45, 82, 0.72);
-      --text-3:    rgba(34, 72, 121, 0.46);
-      --silver:    #2d78bd;
-      --chrome:    #3e6f9f;
-      --accent:    #247fb6;
-      --safe:      #0f9f88;
-      --caution:   #c48604;
-      --danger:    #d13f60;
-      --radar-fill: rgba(176, 209, 255, 0.28);
-      --radar-ring-major: rgba(29, 71, 128, 0.30);
-      --radar-ring-minor: rgba(29, 71, 128, 0.16);
-      --radar-label: rgba(19, 57, 107, 0.72);
-      --radar-boundary: rgba(29, 71, 128, 0.24);
-      --radar-mask: rgba(222, 236, 255, 0.92);
-      --radar-tick-core: rgba(22, 72, 135, 0.72);
-      --radar-tick-edge: rgba(22, 72, 135, 0.2);
-      --radar-origin-a: rgba(22, 72, 135, 0.42);
-      --radar-origin-b: rgba(22, 72, 135, 0.5);
-      --radar-sweep-fill: rgba(29, 105, 171, 0.12);
-      --radar-sweep-line: rgba(29, 105, 171, 0.78);
-      --car-body: #bcc3cf;
-      --car-stroke: #7f9dc8;
-      --car-glass: #b7cdec;
-      --car-roof: #aab2bf;
-      --car-headlight: #fff5d9;
-      --car-headlight-glow: rgba(255, 210, 120, 0.22);
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: var(--bg-grad-1), var(--bg-grad-2), var(--bg);
-      color: var(--text-1);
+      margin: 0; background: var(--bg); color: #fff;
       font-family: 'Inter', sans-serif;
-      overflow-x: hidden;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      transition: background 0.35s ease, color 0.35s ease;
+      overflow: hidden; height: 100vh;
+      display: flex; flex-direction: column;
+      background: radial-gradient(circle at 50% 120%, #1e293b 0%, #020617 100%);
     }
 
-    /* ── HEADER ─────────────────────────────────────── */
     header {
-      padding: 0 52px;
-      height: 68px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 3px 16px rgba(3, 10, 24, 0.55);
-      backdrop-filter: blur(10px);
+      padding: 24px 50px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(12px);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+      z-index: 10;
     }
-
-    .header-left {
-      display: flex;
-      align-items: baseline;
-      gap: 20px;
-    }
-
+    
     .title {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.98rem;
-      font-weight: 700;
-      letter-spacing: 9px;
-      text-transform: uppercase;
-      color: var(--text-1);
-      text-shadow: 0 0 20px rgba(99, 191, 255, 0.25);
-      animation: title-glow 3s ease-in-out infinite;
+      font-family: 'Jura', sans-serif; font-size: 2rem; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
     }
-    @keyframes title-glow {
-      0%, 100% { text-shadow: 0 0 20px rgba(99, 191, 255, 0.2); }
-      50% { text-shadow: 0 0 30px rgba(96, 227, 255, 0.32); }
-    }
-
-    .title-sub {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      font-weight: 500;
-      letter-spacing: 4px;
-      color: var(--text-3);
-      text-transform: uppercase;
-      opacity: 0.8;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .system-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--chrome);
-      transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s ease;
-      position: relative;
-    }
-    .system-dot.online {
-      background: var(--safe);
-      box-shadow: 0 0 12px rgba(45,212,191,0.85), 0 0 24px rgba(45,212,191,0.42);
-      animation: pulse-online 2s ease-in-out infinite;
-    }
-    @keyframes pulse-online {
-      0%, 100% { box-shadow: 0 0 12px rgba(45,212,191,0.8), 0 0 24px rgba(45,212,191,0.38); }
-      50% { box-shadow: 0 0 8px rgba(45,212,191,0.52), 0 0 16px rgba(45,212,191,0.2); }
-    }
-
+    
     .btn-connect {
-      background: transparent;
-      border: 1px solid var(--border-md);
-      color: var(--text-2);
-      padding: 10px 24px;
-      border-radius: 2px;
-      cursor: pointer;
-      font-weight: 600;
-      letter-spacing: 3px;
-      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      text-transform: uppercase;
-      font-size: 0.65rem;
-      font-family: 'IBM Plex Mono', monospace;
-      position: relative;
-      overflow: hidden;
+      background: rgba(255,255,255,0.05); border: 2px solid var(--border);
+      color: white; padding: 12px 30px; border-radius: 12px; cursor: pointer;
+      font-weight: 700; letter-spacing: 1.5px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-transform: uppercase; font-size: 0.9rem; font-family: 'Jura';
     }
-    .btn-connect::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: rgba(82, 213, 255, 0.16);
-      transition: left 0.35s ease;
-      z-index: -1;
-    }
-    .btn-connect:hover::before {
-      left: 0;
-    }
-    .btn-connect:hover {
-      background: rgba(82, 213, 255, 0.08);
-      border-color: var(--border-hi);
-      color: var(--text-1);
-      box-shadow: 0 0 18px rgba(82, 213, 255, 0.22);
-    }
-    .btn-connect.active {
-      background: rgba(82, 213, 255, 0.14);
-      border-color: var(--border-hi);
-      color: var(--text-1);
-      box-shadow: 0 0 22px rgba(82, 213, 255, 0.28);
-    }
+    .btn-connect:hover { background: rgba(255,255,255,0.1); border-color: var(--highlight); transform: translateY(-2px); }
+    .btn-connect.active { background: var(--safe); border-color: #059669; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
 
-    .btn-theme {
-      padding: 10px 18px;
-    }
+    main { display: flex; flex: 1; padding: 40px 50px; gap: 40px; }
 
-    /* ── LAYOUT ─────────────────────────────────────────── */
-    main {
-      display: flex;
-      flex: 1;
-      padding: 24px 52px;
-      gap: 24px;
-    }
-    /* ── RADAR PANE ─────────────────────────────────────── */
+    /* Left - Radar */
     .radar-pane {
-      flex: 1;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      min-height: 520px;
-      padding-top: 0;
-      /* Allow canvas to shift without being clipped. */
-      overflow: visible;
-      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 0, 0, 0.2);
+      flex: 1; min-width: 600px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 30px; display: flex; align-items: center; justify-content: center;
+      position: relative; box-shadow: inset 0 0 80px rgba(0,0,0,0.6), 0 20px 50px rgba(0,0,0,0.4);
+      backdrop-filter: blur(20px);
     }
+    canvas { display: block; border-radius: 50%; opacity: 0.9; }
 
-    .radar-pane::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(180deg, rgba(96, 160, 255, 0.06) 0%, transparent 52%, rgba(0, 0, 0, 0.14) 100%);
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    canvas {
-      display: block;
-      width: min(100%, 820px);
-      height: auto;
-      transform: none;
-      position: relative;
-      z-index: 2;
-      filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.05));
-    }
-
-    /* Move the radar up without changing its size. */
-    .radar-pane canvas {
-      transform: translateY(-80px);
-    }
-
-    /* ── DASHBOARD PANE ─────────────────────────────────── */
+    /* Right - Gauges & Controls */
     .dashboard-pane {
-      width: 380px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      width: 500px; display: flex; flex-direction: column; gap: 25px;
     }
 
-    /* ── SECTION LABEL ─────────────────────────────────── */
-    .section-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.62rem;
-      font-weight: 600;
-      letter-spacing: 4px;
-      color: var(--text-3);
-      text-transform: uppercase;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-md);
-      margin-bottom: 4px;
-      opacity: 0.85;
-    }
-
-    /* ── WARNING CLUSTER ───────────────────────────────── */
+    /* Warning Cluster */
     .warning-cluster {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
     }
-
     .w-light {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-left: 2px solid rgba(255,255,255,0.08);
-      border-radius: 2px;
-      padding: 12px 16px 12px 18px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 600;
-      color: var(--text-3);
-      letter-spacing: 2px;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      font-size: 0.66rem;
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      user-select: none;
-      position: relative;
-      overflow: hidden;
+      background: rgba(0,0,0,0.4); border: 2px solid var(--border);
+      border-radius: 16px; padding: 20px; text-align: center;
+      font-family: 'Jura', sans-serif; font-weight: 700; color: #475569;
+      letter-spacing: 2px; transition: all 0.3s; font-size: 1.1rem;
+      backdrop-filter: blur(10px); text-transform: uppercase;
+    }
+    .w-light.on-safe { background: rgba(16, 185, 129, 0.15); color: var(--safe); border-color: var(--safe); box-shadow: 0 0 25px rgba(16,185,129,0.4) inset, 0 0 15px rgba(16,185,129,0.3); }
+    .w-light.on-caution { background: rgba(245, 158, 11, 0.15); color: var(--caution); border-color: var(--caution); box-shadow: 0 0 25px rgba(245,158,11,0.4) inset, 0 0 15px rgba(245,158,11,0.3); }
+    .w-light.on-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: var(--danger); box-shadow: 0 0 30px rgba(239,68,68,0.5) inset, 0 0 20px rgba(239,68,68,0.4); animation: flash 0.4s infinite alternate; }
+
+    @keyframes flash {
+      from { opacity: 1; filter: brightness(1.2); } 
+      to { opacity: 0.7; filter: brightness(0.8); }
     }
 
-    .w-light::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.05);
-      transition: left 0.4s ease;
-      z-index: -1;
-    }
-
-    .w-light::before {
-      content: '';
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      flex-shrink: 0;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 0 0 rgba(255, 255, 255, 0);
-    }
-
-    /* SAFE — white */
-    .w-light.on-safe {
-      border-left-color: var(--safe);
-      color: var(--text-1);
-      background: rgba(45,212,191,0.1);
-      box-shadow: 0 0 20px rgba(45,212,191,0.16);
-    }
-    .w-light.on-safe::before {
-      background: var(--safe);
-      box-shadow: 0 0 8px rgba(45,212,191,0.65);
-      animation: pulse-safe 2s ease-in-out infinite;
-    }
-
-    /* CAUTION — light gray */
-    .w-light.on-caution {
-      border-left-color: var(--caution);
-      color: #ffe2a1;
-      background: rgba(251,191,36,0.12);
-      box-shadow: 0 0 18px rgba(251,191,36,0.16);
-    }
-    .w-light.on-caution::before {
-      background: var(--caution);
-      box-shadow: 0 0 7px rgba(251,191,36,0.55);
-      animation: pulse-caution 1.5s ease-in-out infinite;
-    }
-
-    /* DANGER — dark gray + pulse */
-    .w-light.on-danger {
-      border-left-color: var(--danger);
-      color: #ffc2cf;
-      background: rgba(251,113,133,0.12);
-      box-shadow: 0 0 16px rgba(251,113,133,0.22);
-      animation: pulse-danger-bg 0.6s infinite alternate;
-    }
-    .w-light.on-danger::before {
-      background: var(--danger);
-      box-shadow: 0 0 6px rgba(251,113,133,0.75);
-      animation: pulse-danger 0.6s ease-in-out infinite;
-    }
-
-    @keyframes pulse-safe { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-    @keyframes pulse-caution { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    @keyframes pulse-danger { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    @keyframes pulse-danger-bg { from { background: rgba(251,113,133,0.1); } to { background: rgba(251,113,133,0.16); } }
-
-    /* ── GAUGES ─────────────────────────────────────────── */
+    /* Gauges */
     .gauge-container {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 22px 20px;
-      display: flex;
-      align-items: stretch;
-      gap: 0;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 20px; padding: 25px; display: flex; gap: 20px;
+      backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
-
     .gauge-box {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex: 1; display: flex; flex-direction: column; align-items: center;
       position: relative;
     }
-
-    .gauge-sep {
-      width: 1px;
-      background: var(--border);
-      margin: 0 14px;
-      align-self: stretch;
+    .gauge-title { font-family: 'Jura'; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: -15px; z-index: 2; font-size: 0.9rem;}
+    .gauge-svg { width: 100%; max-width: 180px; overflow: visible; filter: drop-shadow(0 0 8px rgba(0,0,0,0.5)); }
+    .gauge-bg { stroke: #1e293b; stroke-width: 8; stroke-linecap: round; }
+    .gauge-fill { stroke: var(--accent); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 125.6; stroke-dashoffset: 125.6; transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    
+    .gauge-value {
+      position: absolute; bottom: 15px; text-align: center;
     }
+    .g-num { font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .g-unit { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-top: -5px;}
 
-    .gauge-title {
-      font-family: 'IBM Plex Mono', monospace;
-      color: var(--text-3);
-      font-weight: 600;
-      letter-spacing: 3px;
-      margin-bottom: -14px;
-      z-index: 2;
-      font-size: 0.6rem;
-      text-transform: uppercase;
-      opacity: 0.8;
-    }
-
-    .gauge-svg { width: 100%; max-width: 150px; overflow: visible; }
-    .gauge-bg   { stroke: rgba(95, 128, 178, 0.25); stroke-width: 3.5; stroke-linecap: butt; }
-    .gauge-fill {
-      stroke: var(--silver);
-      stroke-width: 3.5;
-      stroke-linecap: butt;
-      stroke-dasharray: 125.6;
-      stroke-dashoffset: 125.6;
-      transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .gauge-value { position: absolute; bottom: 6px; text-align: center; }
-
-    .g-num {
-      font-family: 'Inter', sans-serif;
-      font-size: 2.4rem;
-      font-weight: 900;
-      letter-spacing: -2px;
-      color: var(--text-1);
-      line-height: 1;
-    }
-    .g-unit {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.55rem;
-      color: var(--text-3);
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 2.5px;
-      margin-top: 3px;
-    }
-
-    /* ── CONTROLS ───────────────────────────────────────── */
+    /* Controls Panel */
     .controls-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      flex: 1;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 20px; padding: 25px; display: flex; flex-direction: column; gap: 20px;
+      backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); flex: 1;
     }
-
-    .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; flex: 1; }
-
+    .panel-title { font-family: 'Jura'; font-size: 0.9rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 2px; }
+    
+    .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; flex: 1; }
     .ctrl-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text-2);
-      border-radius: 5px;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: all 0.18s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 16px 10px;
-      min-height: 80px;
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+      color: #cbd5e1; border-radius: 16px; font-family: 'Jura';
+      font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     }
-    .ctrl-btn:hover {
-      background: rgba(82,213,255,0.08);
-      border-color: var(--border-md);
-      color: var(--text-1);
-      transform: translateY(-1px);
-    }
-    .ctrl-btn:active { transform: scale(0.98); }
-    .ctrl-btn.active-blue {
-      color: var(--text-1);
-      border-color: var(--border-hi);
-      background: rgba(82,213,255,0.14);
-      box-shadow: 0 0 16px rgba(82,213,255,0.22);
-    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); transform: translateY(-2px); }
+    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn.active-blue { color: white; border-color: var(--accent); background: rgba(14, 165, 233, 0.4); box-shadow: 0 0 20px rgba(14, 165, 233, 0.2) inset; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    
+    .ctrl-icon { font-size: 2rem; margin-bottom: 5px; }
+    .ctrl-text { font-size: 0.9rem; }
 
-    .ctrl-icon { font-size: 1.35rem; }
-    .ctrl-text { font-size: 0.64rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-
-    /* -- SETTINGS PANEL --------------------------------------------------- */
-    .settings-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
-    }
-
-    .set-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .set-row {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .set-row span {
-      font-size: 0.62rem;
-      color: var(--text-2);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-
-    .set-input {
-      width: 70px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text-1);
-      border-radius: 2px;
-      padding: 8px 10px;
-      font-size: 0.78rem;
-      font-family: 'IBM Plex Mono', monospace;
-      outline: none;
-      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      letter-spacing: 1px;
-    }
-    .set-input:focus {
-      border-color: var(--border-hi);
-      box-shadow: 0 0 12px rgba(82,213,255,0.2);
-      background: rgba(82, 213, 255, 0.06);
-    }
-
-    .set-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text-2);
-      border-radius: 2px;
-      padding: 9px 12px;
-      font-size: 0.62rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
-    }
-    .set-btn::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: rgba(82, 213, 255, 0.12);
-      transition: left 0.35s ease;
-      z-index: -1;
-    }
-    .set-btn:hover::before {
-      left: 0;
-    }
-    .set-btn:hover {
-      background: rgba(82,213,255,0.09);
-      border-color: var(--border-md);
-      color: var(--text-1);
-      box-shadow: 0 4px 14px rgba(11, 45, 77, 0.4);
-    }
-    .set-btn.toggle-on {
-      color: var(--text-1);
-      border-color: var(--border-hi);
-      background: rgba(82,213,255,0.14);
-      box-shadow: 0 0 16px rgba(82, 213, 255, 0.26);
-    }
-
-    .set-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
-
-    .set-status {
-      min-height: 14px;
-      color: var(--text-3);
-      font-size: 0.55rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    /* ── GLOWING EDGE STRIPS ────────────────────────────── */
-    .edge-strip {
-      position: fixed;
-      top: 0; bottom: 0;
-      width: 4px;
-      z-index: 9999;
-      pointer-events: none;
-      transition: background 0.5s ease, box-shadow 0.5s ease;
-    }
-    .edge-strip-left  { left: 0; }
-    .edge-strip-right { right: 0; }
-
-    .edge-strip.strip-safe {
-      background: linear-gradient(180deg, transparent 5%, #2dd4bf 40%, #2dd4bf 60%, transparent 95%);
-      box-shadow: 0 0 14px 3px rgba(45,212,191,0.45), 0 0 36px 6px rgba(45,212,191,0.18);
-    }
-    .edge-strip.strip-caution {
-      background: linear-gradient(180deg, transparent 5%, #f59e0b 40%, #f59e0b 60%, transparent 95%);
-      box-shadow: 0 0 18px 5px rgba(245,158,11,0.65), 0 0 45px 10px rgba(245,158,11,0.25);
-      animation: strip-pulse-caution 1.3s ease-in-out infinite alternate;
-    }
-    .edge-strip.strip-danger {
-      background: linear-gradient(180deg, transparent 5%, #ef4444 35%, #ef4444 65%, transparent 95%);
-      box-shadow: 0 0 22px 6px rgba(239,68,68,0.75), 0 0 55px 13px rgba(239,68,68,0.3);
-      animation: strip-pulse-danger 0.38s ease-in-out infinite alternate;
-    }
-    .edge-strip.strip-off { background: transparent; box-shadow: none; }
-
-    @keyframes strip-pulse-caution {
-      from { opacity: 0.6; box-shadow: 0 0 14px 4px rgba(245,158,11,0.4),  0 0 36px 8px rgba(245,158,11,0.15); }
-      to   { opacity: 1;   box-shadow: 0 0 28px 8px rgba(245,158,11,0.85), 0 0 60px 16px rgba(245,158,11,0.4); }
-    }
-    @keyframes strip-pulse-danger {
-      from { opacity: 0.55; box-shadow: 0 0 18px 5px rgba(239,68,68,0.5),  0 0 48px 10px rgba(239,68,68,0.2); }
-      to   { opacity: 1;    box-shadow: 0 0 34px 10px rgba(239,68,68,1.0), 0 0 80px 22px rgba(239,68,68,0.5); }
-    }
-
-    @media (max-width: 768px) {
-      main {
-        padding: 14px;
-        gap: 14px;
-        flex-direction: column;
-      }
-      .dashboard-pane {
-        width: 100%;
-      }
-    }
   </style>
 </head>
 <body>
 
-  <!-- Glowing Edge Strips -->
-  <div id="stripLeft"  class="edge-strip edge-strip-left  strip-off"></div>
-  <div id="stripRight" class="edge-strip edge-strip-right strip-off"></div>
-
   <header>
-    <div class="header-left">
-      <div class="title">LD2451 Dooring Defense</div>
-      <div class="title-sub">Collision Prevention · mmWave Radar</div>
-    </div>
-    <div class="header-right">
-      <div class="system-dot" id="sysDot"></div>
-      <button id="themeToggle" class="btn-connect btn-theme">Light Mode</button>
-      <button id="connectBtn" class="btn-connect">Connect Radar (USB)</button>
-    </div>
+    <div class="title">LD2451 Dooring Defense</div>
+    <button id="connectBtn" class="btn-connect">Connect Radar (USB)</button>
   </header>
+
   <main>
-    <!-- Radar Canvas -->
     <div class="radar-pane">
-      <canvas id="radarCanvas" width="820" height="820"></canvas>
+      <canvas id="radarCanvas" width="700" height="700"></canvas>
     </div>
 
-    <!-- Right Panel -->
     <div class="dashboard-pane">
-
-      <!-- Alert Indicators -->
-      <div class="section-label">Alert Status</div>
+      
+      <!-- Warning Indicators -->
       <div class="warning-cluster">
-        <div id="l-safe"    class="w-light">System Safe</div>
-        <div id="l-caution" class="w-light">Caution Zone</div>
-        <div id="l-danger"  class="w-light">Danger</div>
+        <div id="l-safe" class="w-light on-safe">System Safe</div>
+        <div id="l-caution" class="w-light">Caution Area</div>
+        <div id="l-danger" class="w-light">Danger !</div>
       </div>
 
       <!-- Gauges -->
-      <div class="section-label" style="margin-top:4px;">Telemetry</div>
       <div class="gauge-container">
         <div class="gauge-box">
-          <div class="gauge-title">Peak Speed</div>
+          <div class="gauge-title">PEAK SPEED</div>
           <svg class="gauge-svg" viewBox="0 0 100 50">
             <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-bg" />
-            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-fill" id="speedGaugeFill" />
+            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-fill" id="speedGaugeFill" style="stroke: #38bdf8;" />
           </svg>
           <div class="gauge-value">
             <div class="g-num" id="speedVal">0</div>
@@ -711,10 +169,8 @@
           </div>
         </div>
 
-        <div class="gauge-sep"></div>
-
         <div class="gauge-box">
-          <div class="gauge-title">Time to Collision</div>
+          <div class="gauge-title">TIME TO COLLISION</div>
           <svg class="gauge-svg" viewBox="0 0 100 50">
             <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-bg" />
             <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" class="gauge-fill" id="ttcGaugeFill" />
@@ -726,74 +182,19 @@
         </div>
       </div>
 
-      <!-- Operations -->
-      <div class="section-label" style="margin-top:4px;">Operations</div>
+      <!-- Controls -->
       <div class="controls-panel">
+        <div class="panel-title">Operations Center</div>
         <div class="ctrl-grid">
           <button class="ctrl-btn" id="btn-radar">
             <div class="ctrl-icon">🎯</div>
             <div class="ctrl-text">Scan (ON/OFF)</div>
           </button>
-          <button class="ctrl-btn" id="btn-bt">
+          <button class="ctrl-btn" id="btn-bt" class="active-blue">
             <div class="ctrl-icon">📶</div>
             <div class="ctrl-text">Bluetooth: ON</div>
           </button>
-          <button class="ctrl-btn" id="btn-test">
-            <div class="ctrl-icon">🔔</div>
-            <div class="ctrl-text">Self-Test</div>
-          </button>
-          <button class="ctrl-btn" id="btn-sim">
-            <div class="ctrl-icon">🚲</div>
-            <div class="ctrl-text">Demo Simulation</div>
-          </button>
         </div>
-      </div>
-
-      <!-- Settings -->
-      <div class="section-label" style="margin-top:4px;">Settings</div>
-      <div class="settings-panel">
-        <div class="set-group">
-          <div class="set-row">
-            <span>Danger TTC (1-10s)</span>
-            <input class="set-input" id="set-danger-ttc" type="number" min="1" max="10" value="3">
-            <button class="set-btn" id="apply-danger-ttc">Apply</button>
-          </div>
-          <div class="set-row">
-            <span>Caution TTC (2-20s)</span>
-            <input class="set-input" id="set-caution-ttc" type="number" min="2" max="20" value="6">
-            <button class="set-btn" id="apply-caution-ttc">Apply</button>
-          </div>
-          <div class="set-row">
-            <span>Min Speed (0-30)</span>
-            <input class="set-input" id="set-min-speed" type="number" min="0" max="30" value="5">
-            <button class="set-btn" id="apply-min-speed">Apply</button>
-          </div>
-          <div class="set-row">
-            <span>Max Distance (10-100)</span>
-            <input class="set-input" id="set-max-dist" type="number" min="10" max="100" value="100">
-            <button class="set-btn" id="apply-max-dist">Apply</button>
-          </div>
-          <div class="set-row">
-            <span>Min SNR (0-100)</span>
-            <input class="set-input" id="set-min-snr" type="number" min="0" max="100" value="10">
-            <button class="set-btn" id="apply-min-snr">Apply</button>
-          </div>
-        </div>
-
-        <div class="set-actions">
-          <button class="set-btn" id="btn-quiet">Quiet (Q)</button>
-          <button class="set-btn" id="btn-raw">Raw Debug (X)</button>
-          <button class="set-btn" id="btn-live">Live Toggle (L)</button>
-          <button class="set-btn" id="btn-radar-view">Radar View (D)</button>
-          <button class="set-btn" id="btn-auto-config">Auto Config (I)</button>
-          <button class="set-btn" id="btn-fw-version">FW Version (V)</button>
-          <button class="set-btn" id="btn-restart-sensor">Restart (R)</button>
-          <button class="set-btn" id="btn-factory-reset">Factory Reset (F)</button>
-          <button class="set-btn" id="btn-stats">Stats (S)</button>
-          <button class="set-btn" id="btn-plotter">Plotter (P)</button>
-          <button class="set-btn" id="btn-show-menu">Show Menu (M)</button>
-        </div>
-        <div class="set-status" id="settingsStatus">Ready</div>
       </div>
 
     </div>
@@ -801,116 +202,42 @@
 
   <script>
     // Config
-    const MAX_RADAR_DIST = 30;
+    const MAX_RADAR_DIST = 40; 
     let port, serialWriter, serialReader;
     let targets = {};
     let isScanning = false;
     let scanAngle = 0;
-
+    
     // UI Elements
-    const connectBtn  = document.getElementById('connectBtn');
-    const themeToggle = document.getElementById('themeToggle');
-    const sysDot      = document.getElementById('sysDot');
-    const lightSafe   = document.getElementById('l-safe');
-    const lightCaution= document.getElementById('l-caution');
+    const connectBtn = document.getElementById('connectBtn');
+    const lightSafe = document.getElementById('l-safe');
+    const lightCaution = document.getElementById('l-caution');
     const lightDanger = document.getElementById('l-danger');
-
-    const speedGauge  = document.getElementById('speedGaugeFill');
-    const speedVal    = document.getElementById('speedVal');
-    const ttcGauge    = document.getElementById('ttcGaugeFill');
-    const ttcVal      = document.getElementById('ttcVal');
-
+    
+    const speedGauge = document.getElementById('speedGaugeFill');
+    const speedVal = document.getElementById('speedVal');
+    const ttcGauge = document.getElementById('ttcGaugeFill');
+    const ttcVal = document.getElementById('ttcVal');
+    
     const btnRadar = document.getElementById('btn-radar');
-    const btnTest  = document.getElementById('btn-test');
-    const btnSim   = document.getElementById('btn-sim');
-    const btnBt    = document.getElementById('btn-bt');
-    const settingsStatus = document.getElementById('settingsStatus');
-    const btnQuiet = document.getElementById('btn-quiet');
-    const btnRaw = document.getElementById('btn-raw');
-    const canvas   = document.getElementById('radarCanvas');
-    const ctx      = canvas.getContext('2d');
-    let quietState = false;
-    let rawDebugState = false;
-
-    const THEME_KEY = 'ld2451_theme';
-    function applyTheme(theme) {
-      document.documentElement.setAttribute('data-theme', theme);
-      if (themeToggle) {
-        themeToggle.innerText = theme === 'light' ? 'Dark Mode' : 'Light Mode';
-      }
-    }
-
-    function initTheme() {
-      const savedTheme = localStorage.getItem(THEME_KEY);
-      const preferred = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-      applyTheme(savedTheme || preferred);
-    }
-
-    themeToggle.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = current === 'light' ? 'dark' : 'light';
-      applyTheme(next);
-      localStorage.setItem(THEME_KEY, next);
-    });
-
-    initTheme();
-
-    // Commands
+    const btnBt = document.getElementById('btn-bt');
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Commands Logic
     async function sendCommand(str) {
       if (!serialWriter) return;
       await serialWriter.write(str);
     }
-
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-    function setSettingsStatus(msg) {
-      settingsStatus.innerText = msg;
-    }
-
-    function getClampedInt(inputId, minVal, maxVal, fallback) {
-      const el = document.getElementById(inputId);
-      let value = parseInt(el.value, 10);
-      if (Number.isNaN(value)) value = fallback;
-      value = Math.max(minVal, Math.min(maxVal, value));
-      el.value = value;
-      return value;
-    }
-
-    async function runSerialAction(label, task) {
-      if (!serialWriter) return alert("Please connect to USB first.");
-      try {
-        setSettingsStatus(label + "...");
-        await task();
-        setSettingsStatus(label + " complete");
-      } catch (err) {
-        console.error(err);
-        setSettingsStatus(label + " failed");
-      }
-    }
-
-    async function sendMenuCommand(cmd, options = {}) {
-      const { value = null, resumeScan = true, settleMs = 260 } = options;
-      await stopStandby();
-      await sendCommand(cmd);
-      if (value !== null) {
-        await sleep(180);
-        await sendCommand(String(value) + "\n");
-      }
-      await sleep(settleMs);
-      if (resumeScan) {
-        await sendCommand("G");
-        isScanning = true;
-        btnRadar.classList.add('active-blue');
-      }
-    }
-
+    
     async function stopStandby() {
       if (!serialWriter) return;
-      await sendCommand("\n");
+      await sendCommand("\n"); // Send newline to safely exit scanning loops without triggering menu cases
       isScanning = false;
       btnRadar.classList.remove('active-blue');
-      btnSim.classList.remove('active-blue');
-      targets = {};
+      targets = {}; // clear visual cache
       updateUI();
+      // Wait for it to fall back to menu
       await new Promise(r => setTimeout(r, 200));
     }
 
@@ -918,22 +245,24 @@
       try {
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: 115200 });
-
+        
         const textEncoder = new TextEncoderStream();
         textEncoder.readable.pipeTo(port.writable);
         serialWriter = textEncoder.writable.getWriter();
-
-        connectBtn.innerText = "Initialising...";
-
+        
+        connectBtn.innerText = "Rebooting Module...";
+        
+        // Wait for DTR reset Arduino bootloader
         await new Promise(r => setTimeout(r, 2500));
-
+        
         connectBtn.innerText = "System Online";
         connectBtn.classList.add('active');
         connectBtn.disabled = true;
-        sysDot.classList.add('online');
-
+        
+        // Start live reading stream detached
         readDataLoop();
-
+        
+        // Auto start radar logging immediately
         await stopStandby();
         await sendCommand("G");
         isScanning = true;
@@ -947,68 +276,13 @@
     btnRadar.addEventListener('click', async () => {
       if (!serialWriter) return alert("Please connect to USB first.");
       if (isScanning) {
-        await stopStandby();
+        await stopStandby(); // Turn off
       } else {
         await stopStandby();
-        await sendCommand("G");
+        await sendCommand("G"); // Enable CSV Logger
         isScanning = true;
         btnRadar.classList.add('active-blue');
       }
-    });
-
-    let demoInterval = null;
-    btnSim.addEventListener('click', async () => {
-      // If hardware connected, use Arduino's built-in sim
-      if (serialWriter) {
-        await stopStandby();
-        await sendCommand("E");
-        isScanning = true;
-        btnSim.classList.add('active-blue');
-        return;
-      }
-      // Client-side demo — cycles SAFE → CAUTION → DANGER
-      if (demoInterval) {
-        clearInterval(demoInterval);
-        demoInterval = null;
-        isScanning = false;
-        targets = {};
-        btnSim.classList.remove('active-blue');
-        btnSim.querySelector('.ctrl-text').innerText = 'Demo Simulation';
-        updateUI();
-        return;
-      }
-      // Start demo
-      isScanning = true;
-      btnSim.classList.add('active-blue');
-      btnSim.querySelector('.ctrl-text').innerText = 'Stop Demo';
-      let phase = 0;
-      const phases = [
-        // SAFE — distant, slow approach
-        { ttc: 9, speed: 12, alert: 'SAFE',    dist: 35, angle: -20 },
-        // CAUTION — medium range
-        { ttc: 5, speed: 25, alert: 'CAUTION', dist: 20, angle: 5 },
-        // DANGER — close, fast
-        { ttc: 2, speed: 42, alert: 'DANGER',  dist: 8,  angle: 15 },
-      ];
-      demoInterval = setInterval(() => {
-        const p = phases[phase % phases.length];
-        targets[1] = { id: 1, angle: p.angle, dist: p.dist,
-          dir: 'approach', speed: p.speed, ttc: p.ttc,
-          alert: p.alert, lastSeen: Date.now() };
-        phase++;
-        updateUI();
-      }, 2500);
-    });
-
-    btnTest.addEventListener('click', async () => {
-      if (!serialWriter) return;
-      await stopStandby();
-      await sendCommand("T");
-      setTimeout(async () => {
-        await sendCommand("G");
-        isScanning = true;
-        btnRadar.classList.add('active-blue');
-      }, 3000);
     });
 
     let btState = true;
@@ -1018,95 +292,31 @@
       btState = !btState;
       await stopStandby();
       await sendCommand("B");
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200)); // Wait for prompt
       await sendCommand(btState ? "1\n" : "0\n");
-
-      btnBt.style.opacity = "0.4";
+      
+      btnBt.style.opacity = "0.5";
       btnBt.querySelector('.ctrl-text').innerText = "Applying...";
-
+      
+      // Hardware reboots after this command! Wait 3s.
       await new Promise(r => setTimeout(r, 3000));
-
+      
       btnBt.style.opacity = "1";
       btnBt.querySelector('.ctrl-text').innerText = btState ? "Bluetooth: ON" : "Bluetooth: OFF";
       btnBt.classList.toggle('active-blue', btState);
-
+      
+      // Auto resume radar logging after reboot
       await sendCommand("G");
       isScanning = true;
       btnRadar.classList.add('active-blue');
     });
 
-    // Settings bindings (serial menu equivalents)
-    document.getElementById('apply-danger-ttc').addEventListener('click', async () => {
-      const v = getClampedInt('set-danger-ttc', 1, 10, 3);
-      await runSerialAction("Danger TTC", () => sendMenuCommand("1", { value: v }));
-    });
-    document.getElementById('apply-caution-ttc').addEventListener('click', async () => {
-      const v = getClampedInt('set-caution-ttc', 2, 20, 6);
-      await runSerialAction("Caution TTC", () => sendMenuCommand("2", { value: v }));
-    });
-    document.getElementById('apply-min-speed').addEventListener('click', async () => {
-      const v = getClampedInt('set-min-speed', 0, 30, 5);
-      await runSerialAction("Min speed", () => sendMenuCommand("3", { value: v }));
-    });
-    document.getElementById('apply-max-dist').addEventListener('click', async () => {
-      const v = getClampedInt('set-max-dist', 10, 100, 100);
-      await runSerialAction("Max distance", () => sendMenuCommand("4", { value: v }));
-    });
-    document.getElementById('apply-min-snr').addEventListener('click', async () => {
-      const v = getClampedInt('set-min-snr', 0, 100, 10);
-      await runSerialAction("Min SNR", () => sendMenuCommand("5", { value: v }));
-    });
-
-    btnQuiet.addEventListener('click', async () => {
-      await runSerialAction("Quiet mode", async () => {
-        await sendMenuCommand("Q");
-        quietState = !quietState;
-        btnQuiet.classList.toggle('toggle-on', quietState);
-      });
-    });
-
-    btnRaw.addEventListener('click', async () => {
-      await runSerialAction("Raw debug", async () => {
-        await sendMenuCommand("X");
-        rawDebugState = !rawDebugState;
-        btnRaw.classList.toggle('toggle-on', rawDebugState);
-      });
-    });
-
-    document.getElementById('btn-live').addEventListener('click', async () => {
-      await runSerialAction("Live toggle", () => sendMenuCommand("L"));
-    });
-    document.getElementById('btn-radar-view').addEventListener('click', async () => {
-      await runSerialAction("Radar view", () => sendMenuCommand("D", { resumeScan: false, settleMs: 100 }));
-    });
-    document.getElementById('btn-auto-config').addEventListener('click', async () => {
-      await runSerialAction("Auto config", () => sendMenuCommand("I", { settleMs: 500 }));
-    });
-    document.getElementById('btn-fw-version').addEventListener('click', async () => {
-      await runSerialAction("FW version", () => sendMenuCommand("V", { settleMs: 450 }));
-    });
-    document.getElementById('btn-restart-sensor').addEventListener('click', async () => {
-      await runSerialAction("Sensor restart", () => sendMenuCommand("R", { settleMs: 1200 }));
-    });
-    document.getElementById('btn-factory-reset').addEventListener('click', async () => {
-      await runSerialAction("Factory reset", () => sendMenuCommand("F", { settleMs: 1400 }));
-    });
-    document.getElementById('btn-stats').addEventListener('click', async () => {
-      await runSerialAction("Statistics", () => sendMenuCommand("S", { settleMs: 350 }));
-    });
-    document.getElementById('btn-plotter').addEventListener('click', async () => {
-      await runSerialAction("Plotter mode", () => sendMenuCommand("P", { resumeScan: false, settleMs: 100 }));
-    });
-    document.getElementById('btn-show-menu').addEventListener('click', async () => {
-      await runSerialAction("Menu print", () => sendMenuCommand("M", { settleMs: 220 }));
-    });
-
-    // Serial Read Loop
+    // Parsing Stream
     async function readDataLoop() {
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
       serialReader = textDecoder.readable.getReader();
-
+      
       let buffer = "";
       while (true) {
         try {
@@ -1114,7 +324,7 @@
           if (done) break;
           buffer += value;
           const lines = buffer.split('\n');
-          buffer = lines.pop();
+          buffer = lines.pop(); // keep dangling piece
           lines.forEach(line => parseData(line.trim()));
         } catch (e) { break; }
       }
@@ -1122,12 +332,15 @@
 
     function parseData(line) {
       if (!line) return;
+      
+      // e.g. "millis,target,angle_deg,distance_m,direction,speed_kmh,snr,ttc_s,alert"
       const parts = line.split(',');
       if (parts.length >= 9 && parts[0] !== 'millis' && parts[0] !== 'CSV') {
         const id = parseInt(parts[1]);
         const alertStr = parts[8].trim();
+        
         targets[id] = {
-          id, angle: parseInt(parts[2]), dist: parseInt(parts[3]),
+          id, angle: parseInt(parts[2]), dist: parseInt(parts[3]), 
           dir: parts[4], speed: parseInt(parts[5]), ttc: parseFloat(parts[7]), alert: alertStr,
           lastSeen: Date.now()
         };
@@ -1135,390 +348,165 @@
       updateUI();
     }
 
-    let holdAlert = 'SAFE';
-    let holdEscalationTime = 0;
-    let currentHoldTime = 0;
-    const HOLD_DANGER_MS = 1000;
-    const HOLD_CAUTION_MS = 500;
-
-    function getAlertSev(a) {
-      if (a === 'DANGER') return 2;
-      if (a === 'CAUTION') return 1;
-      return 0; // SAFE
-    }
     function updateUI() {
       const now = Date.now();
-      let worstTTC = 999, topSpeed = 0;
-      let evaluatedAlert = 'SAFE';
+      let worstTTC = 999;
+      let topSpeed = 0;
+      let sysAlert = 'SAFE';
+      let hasDanger = false;
+      let hasCaution = false;
+      
       let activeCount = 0;
-
       for (const id in targets) {
         if (now - targets[id].lastSeen > 800) { delete targets[id]; continue; }
         const t = targets[id];
-        if (t.dir !== 'approach') continue;
+        
+        if (t.dir !== 'approach') continue; // only evaluate approaching for gauges
         activeCount++;
+        
         if (t.ttc < worstTTC && t.ttc > 0) worstTTC = t.ttc;
         if (t.speed > topSpeed) topSpeed = t.speed;
         
-        // Find the most severe target alert
-        const tSev = getAlertSev(t.alert);
-        if (tSev > getAlertSev(evaluatedAlert)) evaluatedAlert = t.alert;
+        if (t.alert === 'DANGER') hasDanger = true;
+        if (t.alert === 'CAUTION') hasCaution = true;
       }
-
-      let sysAlert = '';
+      
       if (!isScanning) {
-        holdAlert = 'SAFE';
-        sysAlert = '';
+          // Off
+          sysAlert = '';
       } else {
-        // ── Dashboard Client-Side Hold-Down Logic ────────────────
-        const evalSev = getAlertSev(evaluatedAlert);
-        const currSev = getAlertSev(holdAlert);
-
-        if (evalSev >= currSev) {
-          // Escalate or refresh the timer
-          if (evalSev > currSev) {
-            holdAlert = evaluatedAlert;
-          }
-          holdEscalationTime = now;
-          
-          if (holdAlert === 'DANGER') currentHoldTime = HOLD_DANGER_MS;
-          else if (holdAlert === 'CAUTION') currentHoldTime = HOLD_CAUTION_MS;
-          else currentHoldTime = 0;
-        } else {
-          // Downgrade only if timer expired
-          if (now - holdEscalationTime >= currentHoldTime) {
-            holdAlert = evaluatedAlert;
-            holdEscalationTime = now;
-            
-            if (holdAlert === 'CAUTION') currentHoldTime = HOLD_CAUTION_MS;
-            else currentHoldTime = 0;
-          }
-        }
-        sysAlert = holdAlert;
+          if (hasDanger) sysAlert = 'DANGER';
+          else if (hasCaution) sysAlert = 'CAUTION';
+          else sysAlert = 'SAFE';
       }
-
-      // Warning lights
-      lightSafe.className    = 'w-light' + (sysAlert === 'SAFE'    && isScanning ? ' on-safe'    : '');
+      
+      // Update warning lights
+      lightSafe.className = 'w-light' + (sysAlert === 'SAFE' && isScanning ? ' on-safe' : '');
       lightCaution.className = 'w-light' + (sysAlert === 'CAUTION' && isScanning ? ' on-caution' : '');
-      lightDanger.className  = 'w-light' + (sysAlert === 'DANGER'  && isScanning ? ' on-danger'  : '');
-
-      // Edge strips
-      const stripLeft  = document.getElementById('stripLeft');
-      const stripRight = document.getElementById('stripRight');
-      const stripState = !isScanning      ? 'strip-off'
-                       : sysAlert === 'DANGER'  ? 'strip-danger'
-                       : sysAlert === 'CAUTION' ? 'strip-caution'
-                       : 'strip-safe';
-      stripLeft.className  = 'edge-strip edge-strip-left '  + stripState;
-      stripRight.className = 'edge-strip edge-strip-right ' + stripState;
-
-      // Speed gauge
-      const speedPct = isScanning ? Math.min(topSpeed / 50, 1.0) : 0;
+      lightDanger.className = 'w-light' + (sysAlert === 'DANGER' && isScanning ? ' on-danger' : '');
+      
+      // Update SVG Gauges (Full arc = 125.6 length, offset 125.6 is empty, 0 is full)
+      let speedPct = isScanning ? Math.min(topSpeed / 50, 1.0) : 0;
       speedGauge.style.strokeDashoffset = 125.6 - (125.6 * speedPct);
       speedVal.innerText = isScanning && activeCount > 0 ? topSpeed : '0';
-
-      // TTC gauge
+      
       let ttcPct = 0;
       if (isScanning && worstTTC < 900 && activeCount > 0) {
-        ttcPct = Math.max(0, (10 - worstTTC) / 10);
+         ttcPct = Math.max(0, (10 - worstTTC) / 10);
       }
       ttcGauge.style.strokeDashoffset = 125.6 - (125.6 * ttcPct);
-
-      // TTC gauge color (amber/red break mono only for danger indication)
-      let ttcColor = '#666666';
-      if (ttcPct > 0.7) ttcColor = '#ef4444';
-      else if (ttcPct > 0.4) ttcColor = '#f59e0b';
+      
+      let ttcColor = '#10b981'; // safe
+      if (ttcPct > 0.7) ttcColor = '#ef4444'; // danger
+      else if (ttcPct > 0.4) ttcColor = '#f59e0b'; // caution
       ttcGauge.style.stroke = ttcColor;
-
+      
       ttcVal.innerText = (isScanning && worstTTC < 900 && activeCount > 0) ? worstTTC.toFixed(1) : '--';
     }
 
-    // ── Radar Canvas ─────────────────────────────────────
+    // High Fidelity Radar Canvas Render
     function renderRadar() {
-      const W = canvas.width, H = canvas.height;
-      
-      const maxR = Math.min(W, H) / 1.62;
-      const lobeHalfAngle = 20 * Math.PI / 180;
-      const splitGap = 0;
-      const sideSpreadDeg = 34;
-      const radarBottomShift = 0;
-      const layoutYOffset = 30;
-
-      // Car stays centered; the radar view is split into mirror-side lobes
-      // because the car body blocks the middle section.
-      const carW = 64, carH = 130;
-      const carX = (W / 2) - carW / 2;
-      const carY = (H / 2) - carH / 2 + layoutYOffset;
-      const mirrorY = carY + carH - 38;
-      const leftOriginX = carX - 5;
-      const rightOriginX = carX + carW + 5;
-      const originX = rightOriginX;
-      const originY = mirrorY + radarBottomShift;
-      const leftLobeStart = -Math.PI / 2 - (sideSpreadDeg * Math.PI / 180) - splitGap;
-      const leftLobeEnd = -Math.PI / 2 - splitGap;
-      const rightLobeStart = -Math.PI / 2 + splitGap;
-      const rightLobeEnd = -Math.PI / 2 + (sideSpreadDeg * Math.PI / 180) + splitGap;
-      const theme = getComputedStyle(document.documentElement);
-      const radarFill = theme.getPropertyValue('--radar-fill').trim();
-      const radarRingMajor = theme.getPropertyValue('--radar-ring-major').trim();
-      const radarRingMinor = theme.getPropertyValue('--radar-ring-minor').trim();
-      const radarLabel = theme.getPropertyValue('--radar-label').trim();
-      const radarBoundary = theme.getPropertyValue('--radar-boundary').trim();
-      const radarMask = theme.getPropertyValue('--radar-mask').trim();
-      const radarTickCore = theme.getPropertyValue('--radar-tick-core').trim();
-      const radarTickEdge = theme.getPropertyValue('--radar-tick-edge').trim();
-      const radarOriginA = theme.getPropertyValue('--radar-origin-a').trim();
-      const radarOriginB = theme.getPropertyValue('--radar-origin-b').trim();
-      const radarSweepFill = theme.getPropertyValue('--radar-sweep-fill').trim();
-      const radarSweepLine = theme.getPropertyValue('--radar-sweep-line').trim();
-      const carBody = theme.getPropertyValue('--car-body').trim();
-      const carStroke = theme.getPropertyValue('--car-stroke').trim();
-      const carGlass = theme.getPropertyValue('--car-glass').trim();
-      const carRoof = theme.getPropertyValue('--car-roof').trim();
-      const carHeadlight = theme.getPropertyValue('--car-headlight').trim();
-      const carHeadlightGlow = theme.getPropertyValue('--car-headlight-glow').trim();
+      const W = canvas.width;
+      const H = canvas.height;
+      const cx = W / 2;
+      const cy = H - 30; // Sensor origin
+      const maxR = H - 80;
 
       ctx.clearRect(0, 0, W, H);
 
-      // --- Radar Visualization (Draw First) ---
+      // Radar Inner Shadows & BG
       ctx.beginPath();
-      ctx.moveTo(leftOriginX, originY);
-      ctx.arc(leftOriginX, originY, maxR, leftLobeStart, leftLobeEnd);
-      ctx.closePath();
-      ctx.fillStyle = radarFill;
+      ctx.arc(cx, cy, maxR, Math.PI, 0);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
       ctx.fill();
 
-      ctx.beginPath();
-      ctx.moveTo(originX, originY);
-      ctx.arc(originX, originY, maxR, rightLobeStart, rightLobeEnd);
-      ctx.closePath();
-      ctx.fillStyle = radarFill;
-      ctx.fill();
-
-      // Range rings with enhanced styling (10m steps up to MAX_RADAR_DIST)
-      const ringCount = 10;
-      ctx.lineWidth = 0.9;
-      for (let i = 1; i <= ringCount; i++) {
-        const r = (maxR / ringCount) * i;
-        const isMajorRing = i % 2 === 0 || i === ringCount;
-        ctx.strokeStyle = isMajorRing ? radarRingMajor : radarRingMinor;
+      // Grid Rings
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.2)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 4; i++) {
+        let r = (maxR / 4) * i;
         ctx.beginPath();
-        ctx.arc(originX, originY, r, rightLobeStart, rightLobeEnd);
+        // FOV arc: -60 to +60
+        ctx.arc(cx, cy, r, -Math.PI/2 - Math.PI/3, -Math.PI/2 + Math.PI/3);
         ctx.stroke();
-
-        const dist = (MAX_RADAR_DIST / ringCount) * i;
-        if (isMajorRing) {
-          ctx.fillStyle = radarLabel;
-          ctx.font = "bold 11px monospace";
-          ctx.textAlign = "left";
-          ctx.fillText(dist + "m", originX + 10, originY - r + 14);
-        }
-
-        ctx.beginPath();
-        ctx.arc(leftOriginX, originY, r, leftLobeStart, leftLobeEnd);
-        ctx.stroke();
-        if (isMajorRing) {
-          ctx.textAlign = "right";
-          ctx.fillText(dist + "m", leftOriginX - 10, originY - r + 14);
-          ctx.textAlign = "left";
-        }
-        // Facing up: center is -PI/2. Field of view: ±20 degrees
+        
+        ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
+        ctx.font = "bold 12px Jura";
+        let dist = (MAX_RADAR_DIST / 4) * i;
+        ctx.fillText(dist + "m", cx + 8, cy - r + 15);
       }
 
-      // FOV boundary lines (±20 degrees)
-
+      // FOV Boundaries
       ctx.beginPath();
-      ctx.moveTo(originX, originY);
-      ctx.lineTo(originX + maxR * Math.cos(rightLobeStart), originY + maxR * Math.sin(rightLobeStart));
-      ctx.moveTo(originX, originY);
-      ctx.lineTo(originX + maxR * Math.cos(rightLobeEnd), originY + maxR * Math.sin(rightLobeEnd));
-      ctx.moveTo(leftOriginX, originY);
-      ctx.lineTo(leftOriginX + maxR * Math.cos(leftLobeStart), originY + maxR * Math.sin(leftLobeStart));
-      ctx.moveTo(leftOriginX, originY);
-      ctx.lineTo(leftOriginX + maxR * Math.cos(leftLobeEnd), originY + maxR * Math.sin(leftLobeEnd));
-      ctx.strokeStyle = radarBoundary;
-      ctx.lineWidth = 1;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxR * Math.cos(-Math.PI/2 - Math.PI/3), cy + maxR * Math.sin(-Math.PI/2 - Math.PI/3));
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxR * Math.cos(-Math.PI/2 + Math.PI/3), cy + maxR * Math.sin(-Math.PI/2 + Math.PI/3));
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
       ctx.stroke();
-
-      ctx.fillStyle = radarMask;
-      ctx.fillRect(carX - 6, originY - 2, carW + 12, H - originY + 2);
-
-      // Old angular labels removed; range is now shown by multiple ring labels.
-
-      // Crosshair center tick with enhanced glow
-      ctx.beginPath();
-      ctx.arc(originX, originY, 5, 0, Math.PI * 2);
-      const tickGrad = ctx.createRadialGradient(originX, originY, 0, originX, originY, 5);
-      tickGrad.addColorStop(0, radarTickCore);
-      tickGrad.addColorStop(1, radarTickEdge);
-      ctx.fillStyle = tickGrad;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(leftOriginX, originY, 5, 0, Math.PI * 2);
-      const leftTickGrad = ctx.createRadialGradient(leftOriginX, originY, 0, leftOriginX, originY, 5);
-      leftTickGrad.addColorStop(0, radarTickCore);
-      leftTickGrad.addColorStop(1, radarTickEdge);
-      ctx.fillStyle = leftTickGrad;
-      ctx.fill();
-      ctx.strokeStyle = radarBoundary;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // --- Draw Enhanced Car (Inverted - Facing Down, Centered) - Draw on Top ---
-      ctx.save();
-      // Shadow
-      ctx.shadowColor = "rgba(0,0,0,0.5)";
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetY = 5;
-
-      // Body (smaller to not overlap radar)
-      ctx.fillStyle = carBody;
-      ctx.strokeStyle = carStroke;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(carX, carY, carW, carH, 12);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Windshield (Now at bottom - rear facing down)
-      ctx.fillStyle = carGlass;
-      ctx.beginPath();
-      ctx.roundRect(carX + 8, carY + carH - 45, carW - 16, 25, 4);
-      ctx.fill();
-
-      // Rear window (Now at top - front facing up)
-      ctx.beginPath();
-      ctx.roundRect(carX + 10, carY + 15, carW - 20, 20, 3);
-      ctx.fill();
-
-      // Roof
-      ctx.fillStyle = carRoof;
-      ctx.beginPath();
-      ctx.roundRect(carX + 12, carY + 40, carW - 24, 40, 5);
-      ctx.fill();
-
-      // Front headlights (front faces down in current car orientation)
-      const headlightY = carY + carH - 8;
-      const leftHeadlightX = carX + 8;
-      const rightHeadlightX = carX + carW - 18;
-      ctx.save();
-      ctx.shadowColor = carHeadlightGlow;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = carHeadlight;
-      ctx.strokeStyle = "rgba(255,255,255,0.38)";
-      ctx.lineWidth = 1;
-
-      ctx.beginPath();
-      ctx.roundRect(leftHeadlightX, headlightY, 10, 5, 2);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.roundRect(rightHeadlightX, headlightY, 10, 5, 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-
-      // Mirrors (Right mirror at center - attached to radar origin)
-      ctx.fillStyle = carBody;
-      ctx.strokeStyle = carStroke;
-      // Left mirror
-      ctx.beginPath();
-      ctx.roundRect(carX - 10, carY + carH - 41, 10, 6, 2);
-      ctx.fill(); ctx.stroke();
-      // Right mirror (at radar origin point)
-      ctx.beginPath();
-      ctx.roundRect(carX + carW, carY + carH - 41, 10, 6, 2);
-      ctx.fill(); ctx.stroke();
-      
-      // Highlight the sensor origin points
-      ctx.beginPath();
-      ctx.arc(leftOriginX, originY, 3, 0, Math.PI * 2);
-      ctx.fillStyle = radarOriginA;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(originX, originY, 3, 0, Math.PI * 2);
-      ctx.fillStyle = radarOriginB;
-      ctx.fill();
-      ctx.restore();
 
       if (isScanning) {
-        scanAngle += 0.022;
-        // Keep the single-sensor sweep centered within the left lobe instead of touching the boundaries.
-        const leftSweepCenter = (leftLobeStart + leftLobeEnd) / 2;
-        const leftSweepTravel = Math.sin(scanAngle) * (10 * Math.PI / 180);
-        const leftSweepAngle = leftSweepCenter + leftSweepTravel;
-        const leftSweepOuterX = leftOriginX + maxR * Math.cos(leftSweepAngle);
-        const leftSweepOuterY = originY + maxR * Math.sin(leftSweepAngle);
+          // Sweeper Line
+          scanAngle += 0.025;
+          let sweepAngle = -Math.PI/2 + Math.sin(scanAngle) * Math.PI/3;
 
-        // Sweep wedge: active only on the driver-side (left) lobe.
-        ctx.beginPath();
-        ctx.moveTo(leftOriginX, originY);
-        ctx.arc(leftOriginX, originY, maxR, leftSweepAngle - 0.11, leftSweepAngle + 0.11);
-        ctx.lineTo(leftOriginX, originY);
-        ctx.fillStyle = radarSweepFill;
-        ctx.fill();
-
-        // Sweep line
-        ctx.beginPath();
-        ctx.moveTo(leftSweepOuterX, leftSweepOuterY);
-        ctx.lineTo(leftOriginX, originY);
-        ctx.strokeStyle = radarSweepLine;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Targets: single sensor mounted on the driver side, so plot detections on the left lobe only.
-        const now = Date.now();
-        for (const id in targets) {
-          if (now - targets[id].lastSeen > 800) continue;
-          const t = targets[id];
-
-          const isLeft = true;
-          const anchorX = leftOriginX;
-          const clampedDeg = Math.min(Math.max(Math.abs(t.angle), 8), 30);
-          const angleRad = -Math.PI / 2 - (clampedDeg * Math.PI / 180);
-          let distPx = (t.dist / MAX_RADAR_DIST) * maxR;
-          if (distPx > maxR) distPx = maxR;
-
-          const tx = anchorX + distPx * Math.cos(angleRad);
-          const ty = originY + distPx * Math.sin(angleRad);
-
-          // Target color — only danger/caution break mono
-          let color = "rgba(255,255,255,0.5)";
-          let glowR = 12;
-          if (t.ttc < 3)      { color = "#ef4444"; glowR = 30; }
-          else if (t.ttc < 6) { color = "#f59e0b"; glowR = 22; }
-
-          // Glow halo
           ctx.beginPath();
-          ctx.arc(tx, ty, glowR, 0, Math.PI * 2);
-          const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, glowR);
-          grad.addColorStop(0, color);
-          grad.addColorStop(1, "transparent");
-          ctx.fillStyle = grad;
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + maxR * Math.cos(sweepAngle), cy + maxR * Math.sin(sweepAngle));
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.9)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, maxR, sweepAngle - (Math.sin(scanAngle) > 0 ? 0.3 : -0.3), sweepAngle, Math.sin(scanAngle) <= 0);
+          ctx.lineTo(cx, cy);
+          ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
           ctx.fill();
 
-          // Core dot
-          ctx.beginPath();
-          ctx.arc(tx, ty, 4, 0, Math.PI * 2);
-          ctx.fillStyle = "#ffffff";
-          ctx.fill();
-
-          // Label
-          ctx.fillStyle = "rgba(255,255,255,0.65)";
-          ctx.font = "600 10px Inter, sans-serif";
-          ctx.textAlign = isLeft ? "right" : "left";
-          ctx.fillText(`T${id}  ${t.speed}km/h`, isLeft ? tx - 9 : tx + 9, ty - 4);
-        }
+          // Plot Targets
+          const now = Date.now();
+          for (const id in targets) {
+            if (now - targets[id].lastSeen > 800) continue;
+            const t = targets[id];
+            
+            const angleRad = -Math.PI / 2 + (t.angle * Math.PI / 180);
+            let distPx = (t.dist / MAX_RADAR_DIST) * maxR;
+            if (distPx > maxR) distPx = maxR;
+            
+            const tx = cx + distPx * Math.cos(angleRad);
+            const ty = cy + distPx * Math.sin(angleRad);
+            
+            let color = "#10b981"; let glow = 15;
+            if (t.ttc < 3) { color = "#ef4444"; glow = 35; }
+            else if (t.ttc < 6) { color = "#f59e0b"; glow = 25; }
+            
+            // Glow
+            ctx.beginPath();
+            ctx.arc(tx, ty, glow, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, glow);
+            grad.addColorStop(0, color);
+            grad.addColorStop(1, "transparent");
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // Core
+            ctx.beginPath();
+            ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.fill();
+            
+            // Data Tag
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.font = "bold 11px Inter";
+            ctx.fillText(`T${id} ${t.speed}km/h`, tx + 10, ty - 5);
+          }
       }
 
       requestAnimationFrame(renderRadar);
     }
-
+    
     renderRadar();
-    setInterval(updateUI, 100); // Keep UI/alert state fresh even when serial is quiet
-    updateUI(); // Sync initial state before device connects
   </script>
 </body>
 </html>
