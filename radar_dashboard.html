@@ -71,7 +71,7 @@
 
     /* Warning Cluster */
     .warning-cluster {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
     }
     .w-light {
       background: rgba(0,0,0,0.4); border: 2px solid var(--border);
@@ -83,6 +83,7 @@
     .w-light.on-safe { background: rgba(16, 185, 129, 0.15); color: var(--safe); border-color: var(--safe); box-shadow: 0 0 25px rgba(16,185,129,0.4) inset, 0 0 15px rgba(16,185,129,0.3); }
     .w-light.on-caution { background: rgba(245, 158, 11, 0.15); color: var(--caution); border-color: var(--caution); box-shadow: 0 0 25px rgba(245,158,11,0.4) inset, 0 0 15px rgba(245,158,11,0.3); }
     .w-light.on-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: var(--danger); box-shadow: 0 0 30px rgba(239,68,68,0.5) inset, 0 0 20px rgba(239,68,68,0.4); animation: flash 0.4s infinite alternate; }
+    .w-light.on-door { background: rgba(217, 70, 239, 0.15); color: var(--door); border-color: var(--door); box-shadow: 0 0 30px rgba(217,70,239,0.5) inset, 0 0 20px rgba(217,70,239,0.4); }
 
     @keyframes flash {
       from { opacity: 1; filter: brightness(1.2); } 
@@ -153,6 +154,7 @@
         <div id="l-safe" class="w-light on-safe">System Safe</div>
         <div id="l-caution" class="w-light">Caution Area</div>
         <div id="l-danger" class="w-light">Danger !</div>
+        <div id="l-door" class="w-light">Door Open</div>
       </div>
 
       <!-- Gauges -->
@@ -194,6 +196,14 @@
             <div class="ctrl-icon">📶</div>
             <div class="ctrl-text">Bluetooth: ON</div>
           </button>
+          <button class="ctrl-btn" id="btn-test">
+            <div class="ctrl-icon">🔔</div>
+            <div class="ctrl-text">Self-Test</div>
+          </button>
+          <button class="ctrl-btn" id="btn-sim">
+            <div class="ctrl-icon">🚲</div>
+            <div class="ctrl-text">Demo Simulation</div>
+          </button>
         </div>
       </div>
 
@@ -213,6 +223,7 @@
     const lightSafe = document.getElementById('l-safe');
     const lightCaution = document.getElementById('l-caution');
     const lightDanger = document.getElementById('l-danger');
+    const lightDoor = document.getElementById('l-door');
     
     const speedGauge = document.getElementById('speedGaugeFill');
     const speedVal = document.getElementById('speedVal');
@@ -220,6 +231,8 @@
     const ttcVal = document.getElementById('ttcVal');
     
     const btnRadar = document.getElementById('btn-radar');
+    const btnTest = document.getElementById('btn-test');
+    const btnSim = document.getElementById('btn-sim');
     const btnBt = document.getElementById('btn-bt');
     const canvas = document.getElementById('radarCanvas');
     const ctx = canvas.getContext('2d');
@@ -235,6 +248,7 @@
       await sendCommand("\n"); // Send newline to safely exit scanning loops without triggering menu cases
       isScanning = false;
       btnRadar.classList.remove('active-blue');
+      btnSim.classList.remove('active-blue');
       targets = {}; // clear visual cache
       updateUI();
       // Wait for it to fall back to menu
@@ -283,6 +297,26 @@
         isScanning = true;
         btnRadar.classList.add('active-blue');
       }
+    });
+
+    btnSim.addEventListener('click', async () => {
+      if (!serialWriter) return;
+      await stopStandby();
+      await sendCommand("E");
+      isScanning = true;
+      btnSim.classList.add('active-blue');
+    });
+
+    btnTest.addEventListener('click', async () => {
+      if (!serialWriter) return;
+      await stopStandby();
+      await sendCommand("T");
+      // Resumes scanning after 3 seconds so the self-test can play
+      setTimeout(async () => {
+         await sendCommand("G");
+         isScanning = true;
+         btnRadar.classList.add('active-blue');
+      }, 3000);
     });
 
     let btState = true;
@@ -355,6 +389,7 @@
       let sysAlert = 'SAFE';
       let hasDanger = false;
       let hasCaution = false;
+      let isDoorOpen = false;
       
       let activeCount = 0;
       for (const id in targets) {
@@ -367,8 +402,9 @@
         if (t.ttc < worstTTC && t.ttc > 0) worstTTC = t.ttc;
         if (t.speed > topSpeed) topSpeed = t.speed;
         
-        if (t.alert === 'DANGER') hasDanger = true;
+        if (t.alert === 'DANGER' || t.alert === 'CRITICAL') hasDanger = true;
         if (t.alert === 'CAUTION') hasCaution = true;
+        if (t.alert === 'CRITICAL') isDoorOpen = true; // infer door status from critical escalate
       }
       
       if (!isScanning) {
@@ -384,6 +420,7 @@
       lightSafe.className = 'w-light' + (sysAlert === 'SAFE' && isScanning ? ' on-safe' : '');
       lightCaution.className = 'w-light' + (sysAlert === 'CAUTION' && isScanning ? ' on-caution' : '');
       lightDanger.className = 'w-light' + (sysAlert === 'DANGER' && isScanning ? ' on-danger' : '');
+      lightDoor.className = 'w-light' + (isDoorOpen && isScanning ? ' on-door' : '');
       
       // Update SVG Gauges (Full arc = 125.6 length, offset 125.6 is empty, 0 is full)
       let speedPct = isScanning ? Math.min(topSpeed / 50, 1.0) : 0;

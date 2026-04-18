@@ -124,7 +124,9 @@ float       closestTTC = 999.0;
 
 // Display mode
 bool        liveMode = true;
+bool        radarViewMode = false;
 bool        quietMode = false;     // suppress serial output in live mode
+bool        simMode = false;       // simulation mode (no radar needed)
 
 // ═══════════════════════════════════════════════════════════════
 //  SETUP
@@ -142,6 +144,9 @@ void setup() {
     pinMode(LED_GREEN,  OUTPUT);
     pinMode(LED_YELLOW, OUTPUT);
     pinMode(LED_RED,    OUTPUT);
+
+    // Startup LED test
+    startupAnimation();
   }
 
   // Print welcome
@@ -182,7 +187,9 @@ void loop() {
     setAlertLevel(threat);
 
     // Display
-    if (liveMode && !quietMode) {
+    if (radarViewMode) {
+      drawASCIIRadar();
+    } else if (liveMode && !quietMode) {
       printLiveStatus();
     }
   }
@@ -419,6 +426,116 @@ void printAlertName(AlertLevel level) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  ASCII RADAR DISPLAY
+// ═══════════════════════════════════════════════════════════════
+/*
+ *  Top-down view showing sensor at bottom, targets as symbols.
+ *  '-' = approaching       'o' = receding
+ *  Field of view: ±20° forward, up to MAX_DETECT_DIST meters
+ *
+ *           .  .  .  .  .  80m
+ *           .  .  .  .  .
+ *           .  .  -  .  .   ← cyclist at 40m, 5° left
+ *           .  .  .  .  .
+ *           .  .  S  .  .   0m  (sensor / car door)
+ */
+void drawASCIIRadar() {
+  // ANSI clear screen
+  Serial.print(F("\033[2J\033[H"));
+
+  // Header with alert status
+  Serial.print(F("╔═══ RADAR VIEW ═══╗  Alert: "));
+  printAlertName(currentAlert);
+  Serial.println();
+
+  // Grid: 11 rows × 21 cols
+  // Row 0 = far (MAX_DETECT_DIST), Row 10 = sensor (0m)
+  const uint8_t ROWS = 11;
+  const uint8_t COLS = 21;
+  char grid[ROWS][COLS + 1];
+
+  // Fill grid with dots
+  for (uint8_t r = 0; r < ROWS; r++) {
+    for (uint8_t c = 0; c < COLS; c++) {
+      grid[r][c] = '.';
+    }
+    grid[r][COLS] = '\0';
+  }
+
+  // Mark sensor position
+  grid[ROWS - 1][COLS / 2] = 'S';
+
+  // Zones can optionally be handled here if we want to draw boundary lines in the future
+
+  // Plot targets
+  for (uint8_t i = 0; i < targetCount; i++) {
+    if (targets[i].distance == 0) continue;
+
+    // Map distance to row (0=far, ROWS-1=close)
+    int row = ROWS - 1 - map(targets[i].distance, 0, MAX_DETECT_DIST, 0, ROWS - 1);
+    row = constrain(row, 0, ROWS - 1);
+
+    // Map angle to column (-20° left, +20° right)
+    int col = COLS / 2 + map(targets[i].angle, -20, 20, -(COLS / 2), COLS / 2);
+    col = constrain(col, 0, COLS - 1);
+
+    // Symbol based on threat level
+    char sym;
+    if (targets[i].direction == 1) {  // approaching
+      if (targets[i].ttc < TTC_DANGER)       sym = 'X';  // DANGER
+      else if (targets[i].ttc < TTC_CAUTION) sym = '!';  // CAUTION
+      else                                   sym = 'v';  // approaching (safe)
+    } else {
+      sym = '^';  // receding
+    }
+
+    grid[row][col] = sym;
+  }
+
+  // Print grid with distance labels
+  for (uint8_t r = 0; r < ROWS; r++) {
+    uint8_t dist = map(r, 0, ROWS - 1, MAX_DETECT_DIST, 0);
+
+    // Zone coloring via prefix
+    if (dist <= (uint8_t)(TTC_DANGER * 15))   Serial.print(F(" !! "));
+    else if (dist <= (uint8_t)(TTC_CAUTION * 15)) Serial.print(F("  ! "));
+    else Serial.print(F("    "));
+
+    // Distance label
+    if (dist < 10) Serial.print(F("  ")); else if (dist < 100) Serial.print(F(" "));
+    Serial.print(dist);
+    Serial.print(F("m |"));
+
+    // Grid row
+    for (uint8_t c = 0; c < COLS; c++) {
+      Serial.print(' ');
+      Serial.print(grid[r][c]);
+    }
+
+    Serial.println(F(" |"));
+  }
+
+  // Legend
+  Serial.println(F("      ──┴─────────────────────────┘"));
+  Serial.println(F("  X=DANGER  !=CAUTION  v=approach  ^=recede  S=sensor"));
+
+  // Target details
+  if (targetCount > 0) {
+    Serial.println(F("  ─── Target Details ───"));
+    for (uint8_t i = 0; i < targetCount; i++) {
+      Serial.print(F("  T")); Serial.print(i + 1);
+      Serial.print(F(": ")); Serial.print(targets[i].distance); Serial.print(F("m"));
+      Serial.print(F(" ")); Serial.print(targets[i].speed); Serial.print(F("km/h"));
+      Serial.print(F(" ")); Serial.print(targets[i].angle); Serial.print(F("°"));
+      Serial.print(F(" TTC:")); Serial.print(targets[i].ttc, 1); Serial.print(F("s"));
+      Serial.print(F(" ")); Serial.println(targets[i].direction == 1 ? F("APPROACH") : F("RECEDE"));
+    }
+  } else {
+    Serial.println(F("\n  No targets detected — SAFE to open door"));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CONFIGURATION COMMANDS (to LD2451)
 // ═══════════════════════════════════════════════════════════════
 void sendCommand(uint16_t cmd, const uint8_t* data, uint16_t dataLen) {
@@ -538,6 +655,7 @@ void printMenu() {
   Serial.println(F("╠═══════════════════════════════════════════════════╣"));
   Serial.println(F("║  ── Monitoring ──                                 ║"));
   Serial.println(F("║  L – Toggle Live Status Display                   ║"));
+  Serial.println(F("║  D – ASCII Radar View (30s)                       ║"));
   Serial.println(F("║  Q – Toggle Quiet Mode (LEDs + buzzer only)       ║"));
   Serial.println(F("║  ── Safety Thresholds ──                          ║"));
   Serial.println(F("║  1 – Set DANGER TTC threshold (seconds)           ║"));
@@ -553,10 +671,12 @@ void printMenu() {
   Serial.println(F("║  B – Turn Bluetooth ON / OFF                      ║"));
   Serial.println(F("║  ── Diagnostics ──                                ║"));
   Serial.println(F("║  S – Show Statistics                              ║"));
+  Serial.println(F("║  T – Self-Test (LED + Buzzer)                     ║"));
   Serial.println(F("║  G – CSV Data Logger (for analysis)               ║"));
   Serial.println(F("║  P – Serial Plotter Mode (60s)                    ║"));
   Serial.println(F("║  ── System ──                                     ║"));
   Serial.println(F("║  X – Toggle Raw Hex Debug (Data Viewer)           ║"));
+  Serial.println(F("║  E – SIMULATION Demo (no radar needed)            ║"));
   Serial.println(F("║  M – Show This Menu                               ║"));
   Serial.println(F("╚═══════════════════════════════════════════════════╝"));
   Serial.print(F("> "));
@@ -570,6 +690,26 @@ void handleCommand(char cmd) {
       radarViewMode = false;
       Serial.print(F("Live display: ")); Serial.println(liveMode ? F("ON") : F("OFF"));
       break;
+
+    case 'D': case 'd': {
+      radarViewMode = true;
+      liveMode = false;
+      Serial.println(F("Radar View — 30s (press key to stop)"));
+      uint32_t end = millis() + 30000UL;
+      while (millis() < end && !Serial.available()) {
+        if (readTargetData()) {
+          AlertLevel threat = evaluateThreat();
+          setAlertLevel(threat);
+          drawASCIIRadar();
+          delay(200);
+        }
+      }
+      if (Serial.available()) Serial.read();
+      radarViewMode = false;
+      liveMode = true;
+      Serial.println(F("\nRadar view ended."));
+      break;
+    }
 
     case 'Q': case 'q':
       quietMode = !quietMode;
@@ -640,6 +780,10 @@ void handleCommand(char cmd) {
       printStatistics();
       break;
 
+    case 'T': case 't':
+      selfTest();
+      break;
+
     case 'G': case 'g': {
       Serial.println(F("CSV Logger — press key to stop."));
       Serial.println(F("millis,target,angle_deg,distance_m,direction,speed_kmh,snr,ttc_s,alert"));
@@ -698,6 +842,10 @@ void handleCommand(char cmd) {
       Serial.println(DEBUG_RAW ? F("ON") : F("OFF"));
       break;
 
+    case 'E': case 'e':
+      runSimulation();
+      break;
+
     case 'M': case 'm':
       printMenu();
       return;  // don't print menu again
@@ -726,3 +874,126 @@ void printStatistics() {
   Serial.println(F("╚═══════════════════════════════════════════╝"));
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  SELF-TEST & STARTUP
+// ═══════════════════════════════════════════════════════════════
+void startupAnimation() {
+  if (!ENABLE_HARDWARE) return;
+  // Sequential LED test
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_GREEN, HIGH); delay(150); digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_YELLOW, HIGH); delay(150); digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(LED_RED, HIGH); delay(150); digitalWrite(LED_RED, LOW);
+  }
+  // Set to safe
+  digitalWrite(LED_GREEN, HIGH);
+}
+
+void selfTest() {
+  Serial.println(F("\n=== SELF TEST ==="));
+
+  if (!ENABLE_HARDWARE) {
+    Serial.println(F("  Hardware disabled (ENABLE_HARDWARE = false)."));
+    Serial.println(F("  Skipping LED tests."));
+  } else {
+    Serial.println(F("  Testing GREEN LED..."));
+    digitalWrite(LED_GREEN, HIGH); delay(500); digitalWrite(LED_GREEN, LOW);
+
+    Serial.println(F("  Testing YELLOW LED..."));
+    digitalWrite(LED_YELLOW, HIGH); delay(500); digitalWrite(LED_YELLOW, LOW);
+
+    Serial.println(F("  Testing RED LED..."));
+    digitalWrite(LED_RED, HIGH); delay(500); digitalWrite(LED_RED, LOW);
+  }
+
+  // Try talking to radar
+  Serial.println(F("  Pinging radar..."));
+  enableConfig();
+  sendAndPrint(0x0000, nullptr, 0, "Firmware Version");
+  disableConfig();
+
+  Serial.println(F("=== SELF TEST COMPLETE ===\n"));
+  setAlertLevel(ALERT_SAFE);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SIMULATION MODE — Demo without radar hardware
+// ═══════════════════════════════════════════════════════════════
+/*
+ * Simulates a cyclist approaching from 80m away at ~22 km/h.
+ * The system cycles through all alert levels:
+ *   SAFE → CAUTION → DANGER → cyclist passes → SAFE
+ *
+ * LEDs work exactly as they would with real radar data.
+ * Press any key to exit.
+ */
+void runSimulation() {
+  simMode = true;
+  Serial.println(F("\n╔═══════════════════════════════════════════════╗"));
+  Serial.println(F("║  SIMULATION MODE — No Radar Required           ║"));
+  Serial.println(F("║  Simulating cyclist approach scenario           ║"));
+  Serial.println(F("║  Press any key to exit                          ║"));
+  Serial.println(F("╚═══════════════════════════════════════════════╝\n"));
+
+  const uint8_t SIM_SPEED = 22;  // cyclist speed km/h
+  float simDist = 80.0;          // start 80m away
+  float speed_ms = SIM_SPEED * 1000.0 / 3600.0;  // ~6.1 m/s
+  bool passing = false;
+  uint8_t simCycles = 0;
+
+  while (!Serial.available()) {
+    // Update simulated position
+    if (!passing) {
+      simDist -= speed_ms * 0.3;  // 300ms tick
+      if (simDist < 2) {
+        passing = true;  // cyclist reached us
+      }
+    } else {
+      simDist += speed_ms * 0.3;  // receding
+      if (simDist > 80) {
+        // Reset for next cycle
+        passing = false;
+        simDist = 80.0;
+        simCycles++;
+        Serial.print(F("\n--- Cycle ")); Serial.print(simCycles + 1); Serial.println(F(" ---"));
+      }
+    }
+
+    // Build simulated target
+    targetCount = 1;
+    targets[0].angle = -3 + (int8_t)(2.0 * sin((double)millis() / 500.0));
+    targets[0].distance = (uint8_t)(simDist > 1.0f ? simDist : 1.0f);
+    targets[0].direction = passing ? 0 : 1;  // 1=approaching, 0=receding
+    targets[0].speed = SIM_SPEED;
+    targets[0].snr = 100;
+
+    // Calculate TTC
+    if (!passing && targets[0].distance > 0) {
+      targets[0].ttc = targets[0].distance / speed_ms;
+    } else {
+      targets[0].ttc = 999.0;
+    }
+
+    // Evaluate threat
+    AlertLevel threat = evaluateThreat();
+    setAlertLevel(threat);
+
+    // Print status line
+    Serial.print(F("[SIM] "));
+    printAlertName(currentAlert);
+    Serial.print(F("  Dist:")); Serial.print(targets[0].distance); Serial.print(F("m"));
+    Serial.print(F("  Spd:")); Serial.print(SIM_SPEED); Serial.print(F("km/h"));
+    Serial.print(F("  TTC:")); Serial.print(targets[0].ttc, 1); Serial.print(F("s"));
+    Serial.print(F("  Dir:")); Serial.print(passing ? F("RECEDE") : F("APPROACH"));
+    Serial.println();
+
+    delay(300);
+  }
+
+  // Clean up
+  Serial.read();  // consume the exit key
+  simMode = false;
+  targetCount = 0;
+  setAlertLevel(ALERT_SAFE);
+  Serial.println(F("\nSimulation ended.\n"));
+}
