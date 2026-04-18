@@ -46,6 +46,10 @@
 #define LED_GREEN       5     // SAFE
 #define LED_YELLOW      6     // CAUTION
 #define LED_RED         7     // DANGER
+#define BUZZER_PIN      8     // Active Buzzer
+#define MOTOR_PIN       9     // Vibration Motor (via transistor/MOSFET)
+#define TOUCH_PIN_1     2     // TTP223 Touch Sensor 1
+#define TOUCH_PIN_2     3     // TTP223 Touch Sensor 2
 
 // ═══════════════════════════════════════════════════════════════
 //  CONFIGURATION  (tweak these for your setup)
@@ -129,11 +133,15 @@ void setup() {
   // Radar serial
   radarSerial.begin(RADAR_BAUD);
 
-  // Output pins
+  // Output pins and Sensors
   if (ENABLE_HARDWARE) {
     pinMode(LED_GREEN,  OUTPUT);
     pinMode(LED_YELLOW, OUTPUT);
     pinMode(LED_RED,    OUTPUT);
+    pinMode(BUZZER_PIN, OUTPUT);
+    pinMode(MOTOR_PIN,  OUTPUT);
+    pinMode(TOUCH_PIN_1, INPUT);
+    pinMode(TOUCH_PIN_2, INPUT);
   }
 
   // Print welcome
@@ -315,23 +323,39 @@ void setAlertLevel(AlertLevel level) {
   currentAlert = level;
 
   if (ENABLE_HARDWARE) {
+    // Check if user is touching the door handle (either sensor)
+    bool isTouched = (digitalRead(TOUCH_PIN_1) == HIGH) || (digitalRead(TOUCH_PIN_2) == HIGH);
+
     switch (level) {
       case ALERT_SAFE:
         digitalWrite(LED_GREEN,  HIGH);
         digitalWrite(LED_YELLOW, LOW);
         digitalWrite(LED_RED,    LOW);
+        digitalWrite(BUZZER_PIN, LOW);
+        digitalWrite(MOTOR_PIN,  LOW);
         break;
 
       case ALERT_CAUTION:
         digitalWrite(LED_GREEN,  LOW);
         digitalWrite(LED_YELLOW, HIGH);
         digitalWrite(LED_RED,    LOW);
+        digitalWrite(BUZZER_PIN, LOW);
+        digitalWrite(MOTOR_PIN,  LOW);
         break;
 
       case ALERT_DANGER:
         digitalWrite(LED_GREEN,  LOW);
         digitalWrite(LED_YELLOW, LOW);
         digitalWrite(LED_RED,    HIGH);
+        
+        // Only trigger audio/haptic alerts if the handle is being touched
+        if (isTouched) {
+          digitalWrite(BUZZER_PIN, HIGH);
+          digitalWrite(MOTOR_PIN,  HIGH);
+        } else {
+          digitalWrite(BUZZER_PIN, LOW);
+          digitalWrite(MOTOR_PIN,  LOW);
+        }
         break;
     }
   }
