@@ -28,6 +28,7 @@
  *    Green  LED  →  Pin 5   (SAFE indicator)
  *    Yellow LED  →  Pin 6   (CAUTION indicator)
  *    Red    LED  →  Pin 7   (DANGER indicator)
+ *    Buzzer      →  Pin 8   (Audio warning)
  *
  *  SERIAL MONITOR:
  *    Open at 115200 baud to see live status, settings menu,
@@ -46,21 +47,42 @@
 #define LED_GREEN       5     // SAFE
 #define LED_YELLOW      6     // CAUTION
 #define LED_RED         7     // DANGER
+#define BUZZER_PIN      8     // Piezo buzzer
 
 // ═══════════════════════════════════════════════════════════════
 //  CONFIGURATION  (tweak these for your setup)
 // ═══════════════════════════════════════════════════════════════
 #define RADAR_BAUD      115200  // LD2451 default baud rate
 
-bool    ENABLE_HARDWARE = false; // Set to true if you wire up LEDs
+bool    ENABLE_HARDWARE = true;  // Set to true if you wire up LEDs & Buzzer
 bool    DEBUG_RAW       = false; // Set to true to print raw hex data from radar
 
 // Safety thresholds
 float   TTC_DANGER      = 3.0;   // seconds — DANGER if TTC < this
 float   TTC_CAUTION     = 6.0;   // seconds — CAUTION if TTC < this
 uint8_t MIN_SPEED_KMH   = 5;     // Ignore targets slower than this
-uint8_t MAX_DETECT_DIST = 80;    // Max distance to care about (meters)
+uint8_t MAX_DETECT_DIST = 100;   // Max distance to care about (meters)
 uint8_t MIN_SNR         = 10;    // Minimum signal quality to trust
+
+// Buzzer patterns (ms)
+#define BUZZ_CAUTION_ON   100
+#define BUZZ_CAUTION_OFF  400
+#define BUZZ_DANGER_ON    50
+#define BUZZ_DANGER_OFF   100
+#define BUZZER_ACTIVE_LOW  true  // set false if your buzzer is active-HIGH
+
+// LED/buzzer pattern timings (ms)
+#define SAFE_BREATH_STEP_MS   20
+#define SAFE_BREATH_MIN       8
+#define SAFE_BREATH_MAX       180
+#define SAFE_BREATH_DELTA     4
+
+#define CAUTION_ON_MS         120
+#define CAUTION_GAP_MS        120
+#define CAUTION_PAUSE_MS      900
+
+#define DANGER_FLASH_MS       55
+#define DANGER_BURST_PAUSE_MS 180
 
 // ═══════════════════════════════════════════════════════════════
 //  LD2451 DATA PROTOCOL
@@ -114,6 +136,11 @@ Target      targets[MAX_TARGETS];
 uint8_t     targetCount = 0;
 AlertLevel  currentAlert = ALERT_SAFE;
 AlertLevel  prevAlert = ALERT_SAFE;
+uint32_t    lastBuzzTime = 0;
+bool        buzzState = false;
+uint8_t     blinkStep = 0;
+int16_t     safeBreathLevel = SAFE_BREATH_MIN;
+int8_t      safeBreathDelta = SAFE_BREATH_DELTA;
 
 // Statistics
 uint32_t    dangerEvents = 0;
@@ -128,24 +155,46 @@ bool        radarViewMode = false;
 bool        quietMode = false;     // suppress serial output in live mode
 bool        simMode = false;       // simulation mode (no radar needed)
 
+// Radar silence timeout
+uint32_t    lastPacketTime  = 0;     // millis() of last valid radar frame
+#define     RADAR_TIMEOUT_MS   1500  // ms of silence before clearing alert
+
+// Alert hold-down (prevents rapid DANGER↔SAFE oscillation)
+uint32_t    alertEscalationTime = 0; // millis() when alert was last raised
+uint32_t    currentHoldTime     = 0; // required hold duration
+#define     HOLD_DANGER_MS     1000  // keep DANGER/CRITICAL for at least 1 s
+#define     HOLD_CAUTION_MS    500   // keep CAUTION for at least 0.5 s
+
 // ═══════════════════════════════════════════════════════════════
+inline void buzzerOn() {
+  digitalWrite(BUZZER_PIN, BUZZER_ACTIVE_LOW ? LOW : HIGH);
+}
+
+inline void buzzerOff() {
+  digitalWrite(BUZZER_PIN, BUZZER_ACTIVE_LOW ? HIGH : LOW);
+}
 //  SETUP
 // ═══════════════════════════════════════════════════════════════
 void setup() {
   // Serial Monitor
   Serial.begin(115200);
-  while (!Serial);
+  // NOTE: while(!Serial) removed — it hangs permanently on Arduino Uno R3.
+  // It is only needed on Leonardo/Due/Micro. Uncomment only if using those boards.
+  // while (!Serial);
 
   // Radar serial
   radarSerial.begin(RADAR_BAUD);
+
 
   // Output pins
   if (ENABLE_HARDWARE) {
     pinMode(LED_GREEN,  OUTPUT);
     pinMode(LED_YELLOW, OUTPUT);
     pinMode(LED_RED,    OUTPUT);
+    pinMode(BUZZER_PIN, OUTPUT);
+    buzzerOff(); // keep buzzer silent at startup
 
-    // Startup LED test
+    // Startup LED + buzzer test
     startupAnimation();
   }
 
@@ -181,10 +230,42 @@ void loop() {
 
   // Read radar data
   if (readTargetData()) {
-    // Process targets and determine alert level
+    lastPacketTime = millis();   // record time of last valid frame
+
+    // Evaluate what the radar currently sees
     AlertLevel threat = evaluateThreat();
 
-    setAlertLevel(threat);
+    // ── Robust Alert Hold-Down Logic ──────────────────────────────
+    // Keep alert active for a minimum duration AFTER the threat disappears,
+    // avoiding rapid oscillation or premature dropping.
+    if (threat >= currentAlert) {
+      // Escalating or maintaining: apply immediately and refresh hold timer
+      if (threat > currentAlert) {
+        setAlertLevel(threat);
+      }
+      alertEscalationTime = millis();
+      
+      // Update hold time needed for the active alert
+      if (currentAlert >= ALERT_DANGER)
+        currentHoldTime = HOLD_DANGER_MS;
+      else if (currentAlert == ALERT_CAUTION)
+        currentHoldTime = HOLD_CAUTION_MS;
+      else
+        currentHoldTime = 0;
+    } else {
+      // Threat is LOWER than current alert.
+      // Wait for the hold timer to expire before downgrading.
+      if ((millis() - alertEscalationTime) >= currentHoldTime) {
+        setAlertLevel(threat);
+        alertEscalationTime = millis(); // Refresh timer for the newly downgraded level
+        if (currentAlert >= ALERT_DANGER)
+          currentHoldTime = HOLD_DANGER_MS;
+        else if (currentAlert == ALERT_CAUTION)
+          currentHoldTime = HOLD_CAUTION_MS;
+        else
+          currentHoldTime = 0;
+      }
+    }
 
     // Display
     if (radarViewMode) {
@@ -193,6 +274,23 @@ void loop() {
       printLiveStatus();
     }
   }
+
+  // ── Radar silence timeout ─────────────────────────────────────
+  // If radar completely stops transmitting, we still clear the alert
+  // once the silence duration and hold time have both lapsed.
+  if (currentAlert != ALERT_SAFE && lastPacketTime > 0) {
+    if ((millis() - lastPacketTime) > RADAR_TIMEOUT_MS) {
+      if ((millis() - alertEscalationTime) >= currentHoldTime) {
+        targetCount    = 0;
+        lastPacketTime = 0;  // reset so timeout doesn't re-fire repeatedly
+        setAlertLevel(ALERT_SAFE);
+        if (!quietMode) Serial.println(F("\n[CLEAR] Radar silence timeout — Zone clear"));
+      }
+    }
+  }
+
+  // Drive buzzer/LED pattern
+  driveBuzzer();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -348,23 +446,37 @@ void setAlertLevel(AlertLevel level) {
   currentAlert = level;
 
   if (ENABLE_HARDWARE) {
+    // Reset timing on alert changes; driveBuzzer() handles live patterns.
+    lastBuzzTime = millis();
+
     switch (level) {
       case ALERT_SAFE:
-        digitalWrite(LED_GREEN,  HIGH);
+        buzzerOff();
+        buzzState = false;
+        blinkStep = 0;
+        safeBreathLevel = SAFE_BREATH_MIN;
+        safeBreathDelta = SAFE_BREATH_DELTA;
+        analogWrite(LED_GREEN, safeBreathLevel);
         digitalWrite(LED_YELLOW, LOW);
-        digitalWrite(LED_RED,    LOW);
+        digitalWrite(LED_RED, LOW);
         break;
 
       case ALERT_CAUTION:
-        digitalWrite(LED_GREEN,  LOW);
+        analogWrite(LED_GREEN, 0);
+        digitalWrite(LED_RED, LOW);
+        blinkStep = 0;
+        buzzState = true;
+        buzzerOn();
         digitalWrite(LED_YELLOW, HIGH);
-        digitalWrite(LED_RED,    LOW);
         break;
 
       case ALERT_DANGER:
-        digitalWrite(LED_GREEN,  LOW);
+        analogWrite(LED_GREEN, 0);
         digitalWrite(LED_YELLOW, LOW);
-        digitalWrite(LED_RED,    HIGH);
+        blinkStep = 0;
+        buzzState = true;
+        buzzerOn();
+        digitalWrite(LED_RED, HIGH);
         break;
     }
   }
@@ -374,6 +486,86 @@ void setAlertLevel(AlertLevel level) {
     Serial.print(F("\n>>> ALERT: "));
     printAlertName(level);
     Serial.println();
+  }
+}
+
+// Active-LOW buzzer helpers
+#define BUZZER_ON()  buzzerOn()
+#define BUZZER_OFF() buzzerOff()
+
+void driveBuzzer() {
+  if (!ENABLE_HARDWARE) return;
+  uint32_t now = millis();
+
+  switch (currentAlert) {
+    case ALERT_SAFE:
+      // Slow green breathing pulse (alive indicator)
+      if (now - lastBuzzTime >= SAFE_BREATH_STEP_MS) {
+        safeBreathLevel += safeBreathDelta;
+        if (safeBreathLevel >= SAFE_BREATH_MAX) {
+          safeBreathLevel = SAFE_BREATH_MAX;
+          safeBreathDelta = -SAFE_BREATH_DELTA;
+        } else if (safeBreathLevel <= SAFE_BREATH_MIN) {
+          safeBreathLevel = SAFE_BREATH_MIN;
+          safeBreathDelta = SAFE_BREATH_DELTA;
+        }
+        analogWrite(LED_GREEN, safeBreathLevel);
+        lastBuzzTime = now;
+      }
+      break;
+
+    case ALERT_CAUTION: {
+      // Heartbeat: ON, OFF, ON, then long pause
+      uint32_t interval = CAUTION_PAUSE_MS;
+      if (blinkStep == 0 || blinkStep == 2) interval = CAUTION_ON_MS;
+      else if (blinkStep == 1) interval = CAUTION_GAP_MS;
+
+      if (now - lastBuzzTime > interval) {
+        blinkStep = (blinkStep + 1) % 4;
+        bool phaseOn = (blinkStep == 0 || blinkStep == 2);
+        if (phaseOn) {
+          buzzState = true;
+          buzzerOn();
+          digitalWrite(LED_YELLOW, HIGH);
+        } else {
+          buzzState = false;
+          buzzerOff();
+          digitalWrite(LED_YELLOW, LOW);
+        }
+        lastBuzzTime = now;
+      }
+
+      // If user presses/releases mid-state, handle it instantly
+      if (buzzState) {
+        buzzerOn();
+      }
+    }
+      break;
+
+    case ALERT_DANGER: {
+      // Strobe burst: 3 flashes, then short pause
+      uint32_t interval = (blinkStep == 5) ? DANGER_BURST_PAUSE_MS : DANGER_FLASH_MS;
+      if (now - lastBuzzTime > interval) {
+        blinkStep = (blinkStep + 1) % 6;
+        bool phaseOn = (blinkStep == 0 || blinkStep == 2 || blinkStep == 4);
+        if (phaseOn) {
+          buzzState = true;
+          buzzerOn();
+          digitalWrite(LED_RED, HIGH);
+        } else {
+          buzzState = false;
+          buzzerOff();
+          digitalWrite(LED_RED, LOW);
+        }
+        lastBuzzTime = now;
+      }
+
+      // If user presses/releases mid-state, handle it instantly
+      if (buzzState) {
+        buzzerOn();
+      }
+    }
+      break;
   }
 }
 
@@ -569,7 +761,11 @@ int readCmdResponse(uint8_t* buf, uint16_t bufSize, uint16_t timeoutMs = 1000) {
   }
   if (millis() - start >= timeoutMs) return -1;
 
-  while (radarSerial.available() < 2 && millis() - start < timeoutMs);
+  while (radarSerial.available() < 2 && millis() - start < timeoutMs) {
+    // yield() so SoftwareSerial ISR can run and fill its buffer
+    // without this tight spin, incoming bytes can be dropped
+    delay(1);
+  }
   if (radarSerial.available() < 2) return -1;
   uint8_t lenL = radarSerial.read();
   uint8_t lenH = radarSerial.read();
@@ -656,7 +852,7 @@ void printMenu() {
   Serial.println(F("║  ── Monitoring ──                                 ║"));
   Serial.println(F("║  L – Toggle Live Status Display                   ║"));
   Serial.println(F("║  D – ASCII Radar View (30s)                       ║"));
-  Serial.println(F("║  Q – Toggle Quiet Mode (LEDs + buzzer only)       ║"));
+  Serial.println(F("║  Q – Toggle Quiet Mode (LEDs + buzzer only)      ║"));
   Serial.println(F("║  ── Safety Thresholds ──                          ║"));
   Serial.println(F("║  1 – Set DANGER TTC threshold (seconds)           ║"));
   Serial.println(F("║  2 – Set CAUTION TTC threshold (seconds)          ║"));
@@ -670,7 +866,7 @@ void printMenu() {
   Serial.println(F("║  F – Factory Reset Sensor                         ║"));
   Serial.println(F("║  B – Turn Bluetooth ON / OFF                      ║"));
   Serial.println(F("║  ── Diagnostics ──                                ║"));
-  Serial.println(F("║  S – Show Statistics                              ║"));
+  Serial.println(F("║  S – Show Statistics                               ║"));
   Serial.println(F("║  T – Self-Test (LED + Buzzer)                     ║"));
   Serial.println(F("║  G – CSV Data Logger (for analysis)               ║"));
   Serial.println(F("║  P – Serial Plotter Mode (60s)                    ║"));
@@ -703,6 +899,7 @@ void handleCommand(char cmd) {
           drawASCIIRadar();
           delay(200);
         }
+        driveBuzzer();
       }
       if (Serial.available()) Serial.read();
       radarViewMode = false;
@@ -713,7 +910,7 @@ void handleCommand(char cmd) {
 
     case 'Q': case 'q':
       quietMode = !quietMode;
-      Serial.print(F("Quiet mode: ")); Serial.println(quietMode ? F("ON (LEDs only)") : F("OFF"));
+      Serial.print(F("Quiet mode: ")); Serial.println(quietMode ? F("ON (LEDs+buzzer only)") : F("OFF"));
       break;
 
     // ── Safety Thresholds ──
@@ -766,7 +963,21 @@ void handleCommand(char cmd) {
       break;
 
     case 'B': case 'b': {
-      int choice = readIntFromSerial("\nSet Bluetooth—1=ON, 0=OFF (will restart sensor): ", 0, 1);
+      // The dashboard sends "B" then "1\n" or "0\n" as separate writes.
+      // Wait briefly for the digit to arrive before calling readIntFromSerial.
+      uint32_t btWait = millis();
+      while (!Serial.available() && millis() - btWait < 500);
+      int choice = 0;
+      if (Serial.available()) {
+        char digit = Serial.peek();
+        if (digit == '0' || digit == '1') {
+          choice = Serial.parseInt();  // reads digit + optional newline
+        } else {
+          choice = readIntFromSerial("\nSet Bluetooth—1=ON, 0=OFF (will restart sensor): ", 0, 1);
+        }
+      } else {
+        choice = readIntFromSerial("\nSet Bluetooth—1=ON, 0=OFF (will restart sensor): ", 0, 1);
+      }
       uint8_t btPayload[2] = {(uint8_t)choice, 0x00};
       enableConfig();
       sendAndPrint(0x00A4, btPayload, 2, choice ? "Enable Bluetooth" : "Disable Bluetooth");
@@ -785,10 +996,12 @@ void handleCommand(char cmd) {
       break;
 
     case 'G': case 'g': {
-      Serial.println(F("CSV Logger — press key to stop."));
+      Serial.println(F("CSV Logger - press key to stop."));
       Serial.println(F("millis,target,angle_deg,distance_m,direction,speed_kmh,snr,ttc_s,alert"));
+      uint32_t csvLastPacketTime = 0;
       while (!Serial.available()) {
         if (readTargetData()) {
+          csvLastPacketTime = millis();
           AlertLevel threat = evaluateThreat();
           setAlertLevel(threat);
           for (uint8_t i = 0; i < targetCount; i++) {
@@ -804,6 +1017,17 @@ void handleCommand(char cmd) {
             Serial.println();
           }
         }
+
+        // In CSV logger mode we are not in loop(), so clear stale alerts here too.
+        if (currentAlert != ALERT_SAFE && csvLastPacketTime > 0) {
+          if ((millis() - csvLastPacketTime) > RADAR_TIMEOUT_MS) {
+            targetCount = 0;
+            setAlertLevel(ALERT_SAFE);
+            csvLastPacketTime = 0;
+          }
+        }
+
+        driveBuzzer();
       }
       Serial.read();
       Serial.println(F("Logging stopped."));
@@ -832,6 +1056,7 @@ void handleCommand(char cmd) {
           Serial.print(fastestSpd); Serial.print(',');
           Serial.println(bestTTC > 100 ? 0 : (int)(bestTTC * 10));
         }
+        driveBuzzer();
       }
       break;
     }
@@ -879,13 +1104,20 @@ void printStatistics() {
 // ═══════════════════════════════════════════════════════════════
 void startupAnimation() {
   if (!ENABLE_HARDWARE) return;
-  // Sequential LED test
+
+  // --- LED sweep: GREEN → YELLOW → RED (3 cycles, 300ms each so you can see them) ---
   for (int i = 0; i < 3; i++) {
-    digitalWrite(LED_GREEN, HIGH); delay(150); digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_YELLOW, HIGH); delay(150); digitalWrite(LED_YELLOW, LOW);
-    digitalWrite(LED_RED, HIGH); delay(150); digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_GREEN,  HIGH); delay(300); digitalWrite(LED_GREEN,  LOW);
+    digitalWrite(LED_YELLOW, HIGH); delay(300); digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(LED_RED,    HIGH); delay(300); digitalWrite(LED_RED,    LOW);
   }
-  // Set to safe
+
+  // --- Active-LOW buzzer: 3 short beeps (LOW = on) ---
+  BUZZER_ON();  delay(100); BUZZER_OFF(); delay(150);
+  BUZZER_ON();  delay(100); BUZZER_OFF(); delay(150);
+  BUZZER_ON();  delay(200); BUZZER_OFF();
+
+  // Hold GREEN on for SAFE state
   digitalWrite(LED_GREEN, HIGH);
 }
 
@@ -894,7 +1126,7 @@ void selfTest() {
 
   if (!ENABLE_HARDWARE) {
     Serial.println(F("  Hardware disabled (ENABLE_HARDWARE = false)."));
-    Serial.println(F("  Skipping LED tests."));
+    Serial.println(F("  Skipping LED and Buzzer tests."));
   } else {
     Serial.println(F("  Testing GREEN LED..."));
     digitalWrite(LED_GREEN, HIGH); delay(500); digitalWrite(LED_GREEN, LOW);
@@ -904,6 +1136,16 @@ void selfTest() {
 
     Serial.println(F("  Testing RED LED..."));
     digitalWrite(LED_RED, HIGH); delay(500); digitalWrite(LED_RED, LOW);
+
+    Serial.println(F("  Testing BUZZER pulse 1..."));
+    buzzerOn(); delay(120); buzzerOff(); delay(250);
+
+    Serial.println(F("  Testing BUZZER pulse 2..."));
+    buzzerOn(); delay(200); buzzerOff(); delay(250);
+
+    Serial.println(F("  Testing BUZZER pulse 3..."));
+    buzzerOn(); delay(320); buzzerOff(); delay(250);
+
   }
 
   // Try talking to radar
@@ -924,7 +1166,7 @@ void selfTest() {
  * The system cycles through all alert levels:
  *   SAFE → CAUTION → DANGER → cyclist passes → SAFE
  *
- * LEDs work exactly as they would with real radar data.
+ * LEDs and buzzer work exactly as they would with real radar data.
  * Press any key to exit.
  */
 void runSimulation() {
@@ -987,6 +1229,8 @@ void runSimulation() {
     Serial.print(F("  Dir:")); Serial.print(passing ? F("RECEDE") : F("APPROACH"));
     Serial.println();
 
+    // Drive outputs
+    driveBuzzer();
     delay(300);
   }
 
@@ -997,3 +1241,8 @@ void runSimulation() {
   setAlertLevel(ALERT_SAFE);
   Serial.println(F("\nSimulation ended.\n"));
 }
+
+
+
+
+
